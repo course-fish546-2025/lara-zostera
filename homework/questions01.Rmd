@@ -1,0 +1,18 @@
+Week 01 Question Set
+
+What is your prior experience in this discipline?
+
+some working with genomic data (RAD seq data, GT seg data) in FISH 444 (Conservation Genetics)
+
+What do you hope to get out of this class?
+
+Learn to comfortably analyze WGS data for my PhD project.
+
+This class is strongly rooted in an independent project related to genomic analyses. What specific project do you have in mind? If you do not have any data or preference, data can be provided / aquired. If you do not have a specfic project, what approach would you like to master as part of this class?
+
+low coverage (read depth of 10-15x) whole genome sequenced DNA from a subset of eelgrass samples from a labmate. Learn to analyze, learn to set up data for genome-environment associations. 
+
+What are two things you found most useful from the reading?
+
+moving through directories using the terminal!
+wild cards are so useful. I've used them before and plan to become comfortable using them.
