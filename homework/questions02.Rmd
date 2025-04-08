@@ -1,0 +1,29 @@
+---
+title: "questions02"
+output: html_document
+date: "2025-04-08"
+---
+
+a)  **What do you feel was the most impressive thing you did in class last week was?**
+
+I think I finally wrapped my head around the basics of navigating directory structure using the command line. It's like learning a language, and gets easier and more enjoyable with practice.
+
+b)  **What is your weekly goal for making progress on your project? What is the next step?**
+
+I think my goal is to familiarize myself with the WGS pipeline. Being able to assess data integrity and perform simple analyses comparing genotypes from differences sites. I may or may not be using genotype likelihoods; will acquire more information on that when I acquire my data later today. 
+
+First step would be to assess and open the data.
+
+c)  **There were two readings this week not from the textbook, meant for two different audiences. Which reading did you get the most out of and why? Do you have any questions regarding the Journal of Shellfish Research paper?**
+
+I only see one reading? The paper "Opportunities in Functional Genomics: A Primer on Lab and Computational Aspects" provided an introduction to functional genomics and the current tools used for gene expression research questions. The resources within this review are going to be useful in navigating sequence read assembly and mapping. I am working with DNA, not RNA, so the gene expression analyses are less relevant to me. 
+
+d)  **What is your favorite thing about markdown and why?**
+
+I love markdown! I've been using it for years. I love the functionality of breaking up the code and providing text interpretations, or a "roadmap" of sorts, throughout the document. It transforms code blocks, outputs, and text into really attractive reports!
+
+
+e) **What is the differnce between `curl` and `wget`? When would you used one over the other?
+
+`wget` is useful for quick downloads from internet, generally HTTP or FTP. One also has the option of recursive functionality with this command, which refers to downloading the linked files in the original resource. This function can (and likely should) be limited, and there are commands for doing so. `curl`, on the other hand, suuports a larger number of file types and has more capabilities for secure file transfers (SFTP, SCP, for example). The textbook states that neither `wget` nor `curl` are optimal for heavier duty tasks, but doesn't really delve into what constitutes a heavier duty task.
+
