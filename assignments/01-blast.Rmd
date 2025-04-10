@@ -1,0 +1,65 @@
+---
+title: "01-blast"
+format: html
+editor: visual
+---
+
+I am going download blast and use it to compare it unknown sequences.
+
+```{bash}
+cd /home/jovyan/applications
+curl -O https://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/ncbi-blast-2.16.0+-x64-linux.tar.gz
+tar -xf ncbi-blast-2.16.0+-x64-linux.tar.gz
+```
+
+```{bash}
+/home/jovyan/applications/ncbi-blast-2.16.0+/bin/blastx -h
+
+```
+
+# make blast database
+
+I am using swsis-prot uni=prot
+
+```{bash}
+cd ../blastdb/data
+curl -O https://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_sprot.fasta.gz
+mv uniprot_sprot.fasta.gz uniprot_sprot_r2025_04_03.fasta.gz
+gunzip -k uniprot_sprot_r2025_04_03.fasta.gz
+ls ~/blastdb/data
+```
+
+```{bash}
+~/applications/ncbi-blast-2.16.0+/bin/makeblastdb \
+-in ../../blastdb/data/uniprot_sprot_r2025_01.fasta \
+-dbtype prot \
+-out ~/blastdb/data/uniprot_sprot_r2025_01
+```
+
+# Get query
+
+```{bash}
+curl https://eagle.fish.washington.edu/cnidarian/Ab_4denovo_CLC6_a.fa \
+-k \
+> ~/data/Ab_4denovo_CLC6_a.fa
+```
+
+```{bash}
+head data/Ab_4denovo_CLC6_a.fa
+echo "How many sequences are there?"
+grep -c ">" data/Ab_4denovo_CLC6_a.fa
+```
+
+# Run blast
+
+```{bash}
+/home/shared/ncbi-blast-2.15.0+/bin/blastx \
+-query ../data/Ab_4denovo_CLC6_a.fa \
+-db ../output/01-blast/blastdb/uniprot_sprot_r2025_04_03 \
+-out ../output/01-blast/Ab_4-uniprot_blastx.tab \
+-evalue 1E-20 \
+-num_threads 20 \
+-max_target_seqs 1 \
+-outfmt 6
+```
+
