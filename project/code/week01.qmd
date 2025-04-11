@@ -6,16 +6,19 @@ editor: visual
 
 ## downloading files to raven from klone
 
-The first set of 16 files are samples from Grays Harbor, Washington (W*.fastq.gz).
+The first set of 16 files comprise 8 individual samples from Grays Harbor, Washington (W*.fastq.gz), each with two files representing both DNA read directions.
 
 ```{bash}
 cd ../data
 rsync --archive --progress --verbose lbreit@klone.hyak.uw.edu:/gscratch/scrubbed/lbreit/fish546/W*.fastq.gz .
 ```
 
-The second set of 16 files are samples from Padilla Bay, Washington (P*.fastq.gz).
+The second set of 16 files comprise 8 individual samples from Padilla Bay, Washington (P*.fastq.gz), each with two files representing both DNA read directions.
 
 ```{bash}
 cd ../data
 rsync --archive --progress --verbose lbreit@klone.hyak.uw.edu:/gscratch/scrubbed/lbreit/fish546/P*.fastq.gz .
 ```
+
+Next, I will use the FastQC program for quality control...
+
