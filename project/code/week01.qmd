@@ -22,3 +22,31 @@ rsync --archive --progress --verbose lbreit@klone.hyak.uw.edu:/gscratch/scrubbed
 
 Next, I will use the FastQC program for quality control...
 
+...first I need to create an output file.
+```{bash}
+pwd
+#mkdir ../output
+```
+```{bash}
+# run fastqc
+/home/shared/FastQC-0.12.1/fastqc -t 36 -o ../output ../data/*.fastq.gz
+
+```
+
+# MultiQC
+
+...scans all subdirectories and files within this path for QC reports (e.g., FastQC outputs) and aggregates them into a single HTML report. This report provides visualizations and summaries of QC metrics across multiple samples
+
+```{bash}
+eval "$(/opt/anaconda/anaconda3/bin/conda shell.bash hook)"
+conda activate
+which multiqc
+
+cd ../output/
+multiqc .
+```
+woohoo!!!
+
+# Interpretation 
+
+to follow...
