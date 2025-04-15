@@ -1,0 +1,31 @@
+---
+title: "questions03"
+output: html_document
+date: "2025-04-08"
+---
+
+**(A) An R Markdown file is plain text file that contains what 3 important types of content?**
+
+(Optional, but very helpful) YAML header that is bookended with ---, code chunks that are bookended by ```{r} and ```, and plain text interspersed between code chunks that can be formatted with built-in markdown capabilities.
+
+**(B) What is a chunk and how do you add them? of the many chunk options which one do you think you will use the most and why? How is inline code different than code chunks?**
+
+A code chunk is exactly as it sounds - a tidbit of code that is opened, read (and optionally run), and closed in R. They are initiated with ```{r, etc.} and closed with ```. There is also a keyboard shortcut and a button in the RStudio interface. Anything inside those two commands will be read as code in the specified language. Code chunks can be customized to run/not run, to show/not show code, to show/not show output, and to show/not show warnings, among other things. I tend to use echo = FALSE in my markdown documents, as I am sharing results with collaborators who aren't necessarily interested in the underlying code. That may change as I move towards more bioinformatics-heavy research questions. I always set a polished markdown document with warnings = FALSE for the same reason as the former. Inline code is initiated by using `r `; basically a cute mini version of a code chunk. This is useful for mentioning some property of your data or calculated value without needed to manually add it to the plain text, and is very useful because those properties and values might be updated through time. Inline code, then, seamlessly integrates those upgraded properties or values into your markdown text.
+
+**(C) What’s gone wrong with this code? Why are the points not blue?**
+
+```{r}
+ggplot(data = mpg) + 
+  geom_point(mapping = aes(x = displ, y = hwy, color = "blue"))
+```
+
+To manually set an aesthetic, color = "blue" must be an argument of the geom_point() function, i.e., it goes outside aes(), because changing the color does not convey new information (data) onto the plot, but simply changes the plot appearance:
+
+```{r}
+ggplot(data = mpg) + 
+  geom_point(mapping = aes(x = displ, y = hwy), color = "blue")
+```
+
+**Of the many things we have done in class the past two weeks, what is one aspect you would like to revisit and spend more time on?**
+
+I feel good about week 03 material. I'm still a bit confused about the literal infrastructure that we are using (servers, how they communicate, what we have access to). Additionally, I'm confused about how different interfaces differ (jupyter, raven, rstudio desktop). Fortunately, I'm getting a hang of bash and have 
