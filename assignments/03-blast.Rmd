@@ -170,7 +170,7 @@ All bases lie between 300 and about 475 in count. We have a few bases categorize
 
 # Run blast
 
-```{bash}
+```{bash, eval=FALSE}
 /home/shared/ncbi-blast-2.15.0+/bin/blastx \
 -query ../data/Ab_4denovo_CLC6_a.fa \
 -db ../output/01-blast/blastdb/uniprot_sprot_r2025_04_03 \
@@ -179,4 +179,128 @@ All bases lie between 300 and about 475 in count. We have a few bases categorize
 -num_threads 20 \
 -max_target_seqs 1 \
 -outfmt 6
+```
+
+```{r blast-look, engine='bash', eval=TRUE}
+head -2 output/Ab_4-uniprot_blastx.tab
+```
+
+```{r blast-look2, engine='bash', eval=TRUE}
+echo "Number of lines in output"
+wc -l output/Ab_4-uniprot_blastx.tab
+```
+# Joining Blast table with annoations.
+
+## Prepping Blast table for easy join
+
+```{r separate, engine='bash', eval=TRUE}
+tr '|' '\t' < output/Ab_4-uniprot_blastx.tab \
+> output/Ab_4-uniprot_blastx_sep.tab
+
+head -1 output/Ab_4-uniprot_blastx_sep.tab
+
+```
+## Could do some cool stuff in R here reading in table
+
+```{r read-data, eval=TRUE, cache=TRUE}
+bltabl <- read.csv("output/Ab_4-uniprot_blastx_sep.tab", sep = '\t', header = FALSE)
+
+spgo <- read.csv("https://gannet.fish.washington.edu/seashell/snaps/uniprot_table_r2023_01.tab", sep = '\t', header = TRUE)
+```
+
+```{r, eval=TRUE}
+datatable(head(bltabl), options = list(scrollX = TRUE, scrollY = "400px", scrollCollapse = TRUE, paging = FALSE))
+```
+
+```{r spgo-table, eval=TRUE}
+datatable(head(spgo), options = list(scrollX = TRUE, scrollY = "400px", scrollCollapse = TRUE, paging = FALSE))
+```
+
+```{r see, eval=TRUE}
+datatable(
+  left_join(bltabl, spgo,  by = c("V3" = "Entry")) %>%
+  select(V1, V3, V13, Protein.names, Organism, Gene.Ontology..biological.process., Gene.Ontology.IDs) %>% mutate(V1 = str_replace_all(V1, 
+            pattern = "solid0078_20110412_FRAG_BC_WHITE_WHITE_F3_QV_SE_trimmed", replacement = "Ab"))
+)
+```
+
+```{r join}
+annot_tab <-
+  left_join(bltabl, spgo,  by = c("V3" = "Entry")) %>%
+  select(V1, V3, V13, Protein.names, Organism, Gene.Ontology..biological.process., Gene.Ontology.IDs) %>% mutate(V1 = str_replace_all(V1, 
+            pattern = "solid0078_20110412_FRAG_BC_WHITE_WHITE_F3_QV_SE_trimmed", replacement = "Ab"))
+```
+
+
+```{r, eval=TRUE}
+# Read dataset
+dataset <- read.csv("blast_annot_go.tab", sep = '\t')  # Replace with the path to your dataset
+
+# Select the column of interest
+column_name <- "Organism"  # Replace with the name of the column of interest
+column_data <- dataset[[column_name]]
+
+# Count the occurrences of the strings in the column
+string_counts <- table(column_data)
+
+# Convert to a data frame, sort by count, and select the top 10
+string_counts_df <- as.data.frame(string_counts)
+colnames(string_counts_df) <- c("String", "Count")
+string_counts_df <- string_counts_df[order(string_counts_df$Count, decreasing = TRUE), ]
+top_10_strings <- head(string_counts_df, n = 10)
+
+# Plot the top 10 most common strings using ggplot2
+ggplot(top_10_strings, aes(x = reorder(String, -Count), y = Count, fill = String)) +
+  geom_bar(stat = "identity", position = "dodge", color = "black") +
+  labs(title = "Top 10 Species hits",
+       x = column_name,
+       y = "Count") +
+  theme_minimal() +
+  theme(legend.position = "none") +
+  coord_flip()
+
+
+```
+
+```{r go, eval=TRUE}
+
+
+data <- read.csv("blast_annot_go.tab", sep = '\t')
+
+# Rename the `Gene.Ontology..biological.process.` column to `Biological_Process`
+colnames(data)[colnames(data) == "Gene.Ontology..biological.process."] <- "Biological_Process"
+
+# Separate the `Biological_Process` column into individual biological processes
+data_separated <- unlist(strsplit(data$Biological_Process, split = ";"))
+
+# Trim whitespace from the biological processes
+data_separated <- gsub("^\\s+|\\s+$", "", data_separated)
+
+# Count the occurrences of each biological process
+process_counts <- table(data_separated)
+process_counts <- data.frame(Biological_Process = names(process_counts), Count = as.integer(process_counts))
+process_counts <- process_counts[order(-process_counts$Count), ]
+
+# Select the 20 most predominant biological processes
+top_20_processes <- process_counts[1:20, ]
+
+# Create a color palette for the bars
+bar_colors <- rainbow(nrow(top_20_processes))
+
+# Create a staggered vertical bar plot with different colors for each bar
+barplot(top_20_processes$Count, names.arg = rep("", nrow(top_20_processes)), col = bar_colors,
+        ylim = c(0, max(top_20_processes$Count) * 1.25),
+        main = "Occurrences of the 20 Most Predominant Biological Processes", xlab = "Biological Process", ylab = "Count")
+
+
+# Create a separate plot for the legend
+png("output/GOlegend.png", width = 800, height = 600)
+par(mar = c(0, 0, 0, 0))
+plot.new()
+legend("center", legend = top_20_processes$Biological_Process, fill = bar_colors, cex = 1, title = "Biological Processes")
+dev.off()
+```
+
+```{r legend, eval=TRUE, fig.width = 100 ,fig.height = 100}
+knitr::include_graphics("output/GOlegend.png")
 ```

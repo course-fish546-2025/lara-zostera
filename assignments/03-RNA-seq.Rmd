@@ -1,0 +1,255 @@
+---
+title: "03.1-BLAST"
+author: "Lara Breitkreutz"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+output: 
+  html_document:
+    theme: readable
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+---
+
+```{r time, eval=TRUE, echo=FALSE}
+current_time <- format(Sys.time(), "%B %d, %Y %H:%M:%S")
+cat("current date and time is ", current_time)
+```
+
+# RNA seq
+
+```{r engine='bash', eval=FALSE}
+/home/shared/kallisto/kallisto
+```
+
+kallisto installed on raven?
+
+```{bash}
+cd data
+curl --insecure -O https://gannet.fish.washington.edu/seashell/bu-github/nb-2023/Cgigas/data/rna.fna
+```
+
+# Downloading reference genome
+
+```{r engine='bash', eval=FALSE}
+/home/shared/kallisto/kallisto \
+index -i \
+data/cgigas_roslin_rna.index \
+data/rna.fna
+```
+
+# Downloading sequence reads
+
+```{r engine='bash', eval=FALSE}
+cd data 
+wget --recursive --no-parent --no-directories \
+--no-check-certificate \
+--accept '*.fastq.gz' \
+https://gannet.fish.washington.edu/seashell/bu-github/nb-2023/Cgigas/data/nopp/
+```
+
+...make an output directory and populate output directory with sequence reads.
+
+```{r engine='bash', eval=FALSE}
+mkdir output
+mkdir output/kallisto_01
+
+find data/*fastq.gz \
+| xargs basename -s _L001_R1_001.fastq.gz | xargs -I{} /home/shared/kallisto/kallisto \
+quant -i data/cgigas_roslin_rna.index \
+-o output/kallisto_01/{} \
+-t 40 \
+--single -l 100 -s 10 data/{}_L001_R1_001.fastq.gz
+```
+
+# Create gene expression matrix
+
+```{r engine='bash', eval=FALSE}
+perl /home/shared/trinityrnaseq-v2.12.0/util/abundance_estimates_to_matrix.pl \
+--est_method kallisto \
+    --gene_trans_map none \
+    --out_prefix output/kallisto_01 \
+    --name_sample_by_basedir \
+    output/kallisto_01/D54_S145/abundance.tsv \
+    output/kallisto_01/D56_S136/abundance.tsv \
+    output/kallisto_01/D58_S144/abundance.tsv \
+    output/kallisto_01/M45_S140/abundance.tsv \
+    output/kallisto_01/M48_S137/abundance.tsv \
+    output/kallisto_01/M89_S138/abundance.tsv \
+    output/kallisto_01/D55_S146/abundance.tsv \
+    output/kallisto_01/D57_S143/abundance.tsv \
+    output/kallisto_01/D59_S142/abundance.tsv \
+    output/kallisto_01/M46_S141/abundance.tsv \
+    output/kallisto_01/M49_S139/abundance.tsv \
+    output/kallisto_01/M90_S147/abundance.tsv \
+    output/kallisto_01/N48_S194/abundance.tsv \
+    output/kallisto_01/N50_S187/abundance.tsv \
+    output/kallisto_01/N52_S184/abundance.tsv \
+    output/kallisto_01/N54_S193/abundance.tsv \
+    output/kallisto_01/N56_S192/abundance.tsv \
+    output/kallisto_01/N58_S195/abundance.tsv \
+    output/kallisto_01/N49_S185/abundance.tsv \
+    output/kallisto_01/N51_S186/abundance.tsv \
+    output/kallisto_01/N53_S188/abundance.tsv \
+    output/kallisto_01/N55_S190/abundance.tsv \
+    output/kallisto_01/N57_S191/abundance.tsv \
+    output/kallisto_01/N59_S189/abundance.tsv
+```
+
+# Run DESeq2
+
+```{r}
+#install.packages('BioManager')
+#BiocManager::install("DESeq2")
+library(DESeq2)
+library(tidyverse)
+library(pheatmap)
+library(RColorBrewer)
+library(data.table)
+```
+
+# Read in the count matrix
+
+```{r}
+countmatrix <- read.delim("output/kallisto_01.isoform.counts.matrix", header = TRUE, sep = '\t')
+rownames(countmatrix) <- countmatrix$X
+countmatrix <- countmatrix[,-1]
+head(countmatrix)
+```
+
+...rounding integers to whole numbers
+
+```{r}
+countmatrix <- round(countmatrix, 0)
+str(countmatrix)
+```
+
+# Get DEGs based on Desication
+
+```{r}
+deseq2.colData <- data.frame(condition=factor(c(rep("control", 12), rep("desicated", 12))), 
+                             type=factor(rep("single-read", 24)))
+rownames(deseq2.colData) <- colnames(data)
+deseq2.dds <- DESeqDataSetFromMatrix(countData = countmatrix,
+                                     colData = deseq2.colData, 
+                                     design = ~ condition)
+```
+
+```{r}
+deseq2.dds <- DESeq(deseq2.dds)
+deseq2.res <- results(deseq2.dds)
+deseq2.res <- deseq2.res[order(rownames(deseq2.res)), ]
+```
+
+```{r}
+head(deseq2.res)
+```
+```{r PCA, eval=TRUE}
+vsd <- vst(deseq2.dds, blind = FALSE)
+plotPCA(vsd, intgroup = "condition")
+```
+
+```{r heatmap, eval=TRUE}
+# Select top 50 differentially expressed genes
+res <- results(deseq2.dds)
+res_ordered <- res[order(res$padj), ]
+top_genes <- row.names(res_ordered)[1:50]
+
+# Extract counts and normalize
+counts <- counts(deseq2.dds, normalized = TRUE)
+counts_top <- counts[top_genes, ]
+
+# Log-transform counts
+log_counts_top <- log2(counts_top + 1)
+
+# Generate heatmap
+pheatmap(log_counts_top, scale = "row")
+```
+
+```{r}
+# Count number of hits with adjusted p-value less then 0.05
+dim(deseq2.res[!is.na(deseq2.res$padj) & deseq2.res$padj <= 0.05, ])
+```
+
+```{r}
+tmp <- deseq2.res
+# The main plot
+plot(tmp$baseMean, tmp$log2FoldChange, pch=20, cex=0.45, ylim=c(-3, 3), log="x", col="darkgray",
+     main="DEG Dessication  (pval <= 0.05)",
+     xlab="mean of normalized counts",
+     ylab="Log2 Fold Change")
+# Getting the significant points and plotting them again so they're a different color
+tmp.sig <- deseq2.res[!is.na(deseq2.res$padj) & deseq2.res$padj <= 0.05, ]
+points(tmp.sig$baseMean, tmp.sig$log2FoldChange, pch=20, cex=0.45, col="red")
+# 2 FC lines
+abline(h=c(-1,1), col="blue")
+```
+
+```{r newplot, eval=TRUE}
+# Prepare the data for plotting
+res_df <- as.data.frame(deseq2.res)
+res_df$gene <- row.names(res_df)
+
+# Create volcano plot
+volcano_plot <- ggplot(res_df, aes(x = log2FoldChange, y = -log10(padj), color = padj < 0.05)) +
+  geom_point(alpha = 0.6, size = 1.5) +
+  scale_color_manual(values = c("grey", "red")) +
+  labs(title = "Volcano Plot",
+       x = "Log2 Fold Change",
+       y = "-Log10 Adjusted P-value",
+       color = "Significantly\nDifferentially Expressed") +
+  theme_minimal() +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        legend.position = "top")
+
+print(volcano_plot)
+```
+
+```{r}
+write.table(tmp.sig, "output/DEGlist.tab", row.names = T)
+```
+
+```{r, eval=FALSE}
+
+library(data.table)
+deglist <- fread("output/DEGlist.tab")
+
+deglist$RowName <- rownames(deglist)
+deglist2 <- deglist[, c("RowName", "pvalue")] # Optionally, reorder the columns
+```
+
+
+```{r, eval=FALSE}
+library(DT)
+datatable(deglist)
+```
+
+# Gene Enrichment Analysis
+
+```{r}
+gene_deg_status <- res_df %>%
+  mutate(degstaus = ifelse(padj < 0.05, 1, 0)) 
+```
+
+```{r}
+library(Biostrings)
+# Read the FASTA file
+fasta_data <- readDNAStringSet("data/rna.fna")
+
+# Calculate gene lengths
+gene_lengths <- width(fasta_data)
+
+
+# Extract gene names/IDs from sequence IDs
+gene_names <- sapply(names(fasta_data), function(x) strsplit(x, " ")[[1]][1])
+
+# Create a data frame with gene IDs and lengths
+gene_lengths_df <- data.frame(geneID = gene_names, length = gene_lengths)
+
+```
+
+
+#  Need GO Mappings 
+
+package goseq (with function nullp()) is not available for my version of R. Skipping this step.
