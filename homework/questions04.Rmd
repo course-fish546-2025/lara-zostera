@@ -1,0 +1,27 @@
+---
+title: "Week 04 Questions"
+
+format:
+  html:
+    code-fold: false
+    code-tools: true
+    code-copy: true
+    highlight-style: github
+    code-overflow: wrap
+---
+
+a)  **What is `tmux` and how does this relate to our current way of working on raven?**
+
+tmux is a tool used in the command-line to create and use multiple terminal sessions at once. It allows several scripts (or programs) to be run simultaneously. I'm gonna take a stab at the second part of this question; I think it would allow us to open multiple sessions in the terminal window (in Rstudio) and run more than one program within one R script, or more than one R script, at a time...?
+
+b)  **What is `ssh` and what would the code be you would type if you were going to `ssh` into raven?**
+
+ssh stands for 'secure shell', and it is a command that prompts a secure login to a computer. In my limited experience with hyak, I would promopt this secure login by typing 'ssh lbreit@klone.hyak.uw.edu'. At that point, it would prompt me to enter my password (associated with my UW netID). Only if this password is correct, does it grant me entry into hyak.
+
+c)  **What has been the most challenging part of your research project? Are you happy with your organization skills? If not what could be improved?**
+
+Using bash (commands) has 100% been the most challenging part of my project. I have years of experience conducting analyses in R, and I feel like the bottleneck for me has been getting my data into a form for downstream analysis in R. I am hopeful that with practice this will get easier.
+
+d)  **For last weeks assignment what did you appreciate the most about knitting documents?**
+
+The customizability of the code chunks! It is so great to be able to hide code while still evaluating, or vice versa. Also, I tend to set warnings = FALSE when I am finished with the analysis (and ready to knit a report) so that I can get rid of weird warnings that R likes to output. 
