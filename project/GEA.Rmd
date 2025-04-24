@@ -1,0 +1,99 @@
+---
+title: "Genotype association analysis"
+author: "Lara Breitkreutz"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+output: 
+  html_document:
+    theme: readable
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+---
+
+```{r time, eval=TRUE, echo=FALSE}
+current_time <- format(Sys.time(), "%B %d, %Y %H:%M:%S")
+cat("current date and time is ", current_time)
+```
+
+## Packages
+```{r}
+library(psych)    # Used to investigate correlations among predictors
+library(vegan)    # Used to run RDA
+```
+
+## Simulate environmental data
+
+```{r}
+# create sites
+sites <- tibble(site_id = paste0("Site_", 1:15)) #15 sites; change once you know how many sites Bryan is providing 
+
+# function for simulating temperatures 
+simulate_temps <- function() {
+  base_temps <- c(
+    6.5, 7.1, 8.3, 10.2, 12.8, 15.5,  # Monthly averages for nearshore areas
+    17.5, 18.3, 16.1, 12.5, 9.1, 7.2   # Based on Salish Sea observations
+  )
+  
+  tibble(date = seq.Date(as.Date("2025-01-01"), by = "day", length.out = 365)) %>%
+    mutate(
+      month = month(date),
+      temp = base_temps[month] + rnorm(365, 0, 1.0)  # Simplified noise
+    )
+}
+
+# calculate seasonal temp metrics
+seasonal_data <- sites %>%
+  mutate(
+    temp_data = map(1:n(), ~simulate_temps()),
+    metrics = map(temp_data, ~{
+      .x %>%
+        mutate(season = case_when(
+          month(date) %in% 3:5 ~ "Spring",
+          month(date) %in% 6:8 ~ "Summer",
+          month(date) %in% 9:11 ~ "Fall",
+          TRUE ~ "Winter"
+        )) %>%
+        group_by(season) %>%
+        summarise(
+          avg_temp = mean(temp),
+          max_temp = max(temp),
+          min_temp = min(temp),
+          temp_range = max_temp - min_temp,
+          warm_anomaly_days = sum(temp > quantile(temp, 0.9)),
+          cold_anomaly_days = sum(temp < quantile(temp, 0.1)),
+          cumulative_gdd = sum(pmax(temp - 5, 0))
+        )
+    })
+  ) %>%
+  unnest(metrics) %>%
+  select(-temp_data)
+
+# Preview data
+head(seasonal_data)
+```
+
+## Investiating correlations among temp predictors
+
+```{r}
+pairs.panels(seasonal_data[,3:9], scale=T)
+```
+```{r}
+pred <- subset(seasonal_data, select=-c(cold_anomaly_days, min_temp, max_temp, cumulative_gdd)) #remove predictors
+```
+
+```{r}
+pairs.panels(pred[,3:5], scale=T)
+```
+
+## Run the RDA
+
+```{r}
+
+```
+
+### Read in and prep genetic data for analysis
+```{r}
+
+
+```
