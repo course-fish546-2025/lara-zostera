@@ -1,0 +1,29 @@
+---
+title: "Week 06 Questions"
+
+format:
+  html:
+    code-fold: false
+    code-tools: true
+    code-copy: true
+    highlight-style: github
+    code-overflow: wrap
+---
+
+a)  **What are SAM/BAM files? What is the difference between to the two?**
+
+.sam and .bam files are created during alignment, for storing sequence reads that have been mapped to a reference genome. While they essentially store the same information, .sam files remain human readable (plain text formatting), while .bam files are composed of binary code (0s and 1s) and compresses the information into a machine, but not human, readable format. This increases processing efficiency for the latter file type.
+
+b)  **`samtools`is a popular program for working with alignment data. What are three common tasks that this software is used for?** 
+
+sorting alignments by "chromosomal" coordinates (fancy, first time I've heard this) (sort), indexing .bam files for quick and easy access to a specific region stored in the file (index), and summarizes the base calls of all the aigned reads at each position, providing information on read-depth and variant calling at each position (mpileup).
+
+c)  **Why might you want to visualize alignment data and what are two programs that can be used for this?**
+
+I think you'd want to visualize alignment data to understand how certain individual samples compare to one another in depth. You could also identify potentially highly conserved regions of the genome (very few SNPs), suggesting a region of functional impotance. Could also just be a way to check how well the automated alignment process worked, and do some manual quality control.
+
+I'm guessing R? I can't find the answer to this in the readings, but from what I can glean online, MEGA and Jalview are two popular programs for visualizing alignment data.
+
+d)  **Describe what VCF file is?**
+
+The output of samtools mpileup subcommand is a Variant Call Format (VCF) file. This file stores information in three parts: metadata (in the header), variables and sample names, and the actual rows of data describing the variants at a particular position for all individual sample genotypes.
