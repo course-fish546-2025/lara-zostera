@@ -1,0 +1,27 @@
+---
+title: "Week 06 Questions"
+
+format:
+  html:
+    code-fold: false
+    code-tools: true
+    code-copy: true
+    highlight-style: github
+    code-overflow: wrap
+---
+
+a)  **What is Quarto?**
+
+Quarto is a publishing tool used for easily and aesthetically incorporating data and code among more conventional text or images. A quarto document can be created and modified in R and looks and feels similar to a markdown file, but with more capabilities.
+
+b)  **How do you make columns using Revealjs in Quarto Presentations?**
+
+Columns are made using...wait for it...a contained class called .columns! These containers can be modified with attributes, most commonly "width". Within a column container (which is called used :::: {.columns}), you then use the container to add columns sequentially, closing the original contianer with ::::.
+
+c)  **How would you change the appearance of slides using Revealjs in Quarto Presentations?**
+
+You can create a custom background and specify a custom template in the header. You can add slide transitions globally (in the header) or per slide using {   }. There are a multitude of layout options for components (such as images) within the slide itself.
+
+d)  **What has been the biggest constraint working on your own research project in the past week?**
+
+My upset with transferring files from lolo to hyak totally threw me for a loop. I finally have all my sequences transferred and aligned. I am now trying to run a stacks script to identify SNPs and finally begin working with my data at that level. The script is not working.
