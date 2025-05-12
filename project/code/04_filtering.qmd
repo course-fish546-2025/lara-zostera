@@ -1,0 +1,93 @@
+---
+title: "04_popgen"
+format: html
+editor: visual
+---
+
+## .vcf files from single nucleotide variant calling with ref_map.pl in STACKS
+
+```{r}
+library(SNPfiltR)
+library(vcfR)
+```
+
+```{bash}
+#transfer vcf file from hyak to raven
+rsync --archive --progress --verbose lbreit@klone.hyak.uw.edu:/gscratch/scrubbed/lbreit/fish546/REFMAP/test2/populations.snps.vcf ../data
+
+#transfer pop map from hyak to raven
+rsync --archive --progress --verbose lbreit@klone.hyak.uw.edu:/mmfs1/home/lbreit/fish546/popmap_test2.txt ../data
+```
+
+```{r}
+#read vcf into this R session as vcfR 
+vcfR <- read.vcfR("~/fish546/lara-zostera/project/data/populations.snps.vcf")
+
+# check metadata present in vcf
+vcfR
+```
+
+Sample size: `r length(colnames(vcfR@gt)[-1])` individuals  
+
+Variants: `r nrow(vcfR@fix)` biallelic sites 
+
+AHHH!!!!! IT WORKED!!!!
+
+```{r}
+#pop map
+#read all lines from the file
+lines <- readLines("../data/popmap_test2.txt")
+
+# Filter out lines that start with '#'
+lines <- lines[!grepl("^#", lines)]
+
+# Convert the remaining lines into a textConnection for reading as a table
+popmap <- read.table(text = lines, sep = "\t", header = FALSE)
+
+# Assign column names
+colnames(popmap) <- c("id", "pop", "region")
+head(popmap)
+```
+
+## Why filter?
+
+We want to detect and and remove markers that do not actually represent loci, identify and correct erroneous SNP calls, and assess genotyping error. Error can be introduced during library prep and bioinformatic processing! See O'Leary et al. (2018) **Table 1** for a summary of RADseq issues, technical and bioinformatic mitigation (filtering) of those issues.
+
+## hard filtering
+
+```{r}
+#start by visualizing the distributions of depth of sequencing and genotype quality among called genotypes
+
+#these histograms represent the frequency of a particular genotype depth (DP) or genotype quality (GQ) value summed over every sample at every SNP position in the dataset
+
+hard_filter(vcfR=vcfR)
+```
+The histogram of dp.matrix shows the full genoptype depth across all genotypes. A very large spike at low depth, and a long tail extending to very high depths (up to 20,000+ reads). Dashed red line is mean depth. Extremely high-depth genotypes may suggest problematic loci. Set both a min and a max for filtering.
+
+The historgram of dp.matrix[dp.matrix <25] shows the distribution of genotype depth for depths less than 25 (close up of the left side of the first histogram). Most genotypes have low sequencing depth. We will proceed with a depth cut-off of 10 (standard), under which genotype calls are unreliable.
+
+The histogram of gq.matrix shows the distribution of genotype quality (GQ) scores across all genotypes in the dataset. The plot is heavily skewed towards high GQ values. Red dashed line represents mean. Many workflows will remove genotypes with GQ below 30, as lower values indicate less confidence in genotype call.
+
+### genotype depth ≥ 10 and gq > 30
+
+```{r}
+vcfR<-hard_filter(vcfR=vcfR, depth = 10, gq = 30)
+```
+
+### genotype allelic balance < 0.2 and > 0.8
+
+If a SNP is observed in only one or two readouts of many (e.g., >10), it is likely a sequencing error.
+
+```{r}
+# Allelic balance can be measured by comparing the number of reads supporting each allele at a specific locus. 
+vcfR.AB <- filter_allele_balance(vcfR, min.ratio = 0.2, max.ratio = 0.8)
+```
+Still don't quite understand why we filter for allelic imbalance. I know that 
+## References
+
+DeRaad, D.A. (2022), SNPfiltR: an R package for interactive and reproducible SNP filtering. Molecular Ecology Resources, 22, 2443-2453. http://doi.org/10.1111/1755-0998.13618 
+
+Knaus, Brian J., and Niklaus J. Grunwald. 2017. VCFR: a package to manipulate and visualize variant call format data in R. Molecular Ecology Resources, 17.1:44-53. http://doi.org/10.1111/1755-0998.12549
+
+O’Leary, S. J., Puritz, J. B., Willis, S. C., Hollenbeck, C. M., & Portnoy, D. S. (2018). These aren’t the loci you’e looking for: Principles of effective SNP filtering for molecular ecologists. Molecular Ecology, 27(16), 3193–3206. https://doi.org/10.1111/mec.14792
+
