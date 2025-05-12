@@ -82,7 +82,22 @@ If a SNP is observed in only one or two readouts of many (e.g., >10), it is like
 # Allelic balance can be measured by comparing the number of reads supporting each allele at a specific locus. 
 vcfR.AB <- filter_allele_balance(vcfR, min.ratio = 0.2, max.ratio = 0.8)
 ```
-Still don't quite understand why we filter for allelic imbalance. I know that 
+Still don't quite understand why we filter for allelic imbalance. I know that ...
+
+### remove monomorphic SNPs
+```{r}
+# filters out non-informative SNPs. A minor allele count (MAC) of 0 provides no genetic variation for analysis
+
+vcfR.depth.AB.mac <- min_mac(vcfR.AB, min.mac = 1) #would we want the MAC threshold to be higher to reduce false positives?
+```
+**after hard filtering**
+
+
+Sample size: `r length(colnames(vcfR.depth.AB.mac@gt)[-1])` individuals  
+
+Variants: `r nrow(vcfR.depth.AB.mac@fix)` SNPs      
+
+
 ## References
 
 DeRaad, D.A. (2022), SNPfiltR: an R package for interactive and reproducible SNP filtering. Molecular Ecology Resources, 22, 2443-2453. http://doi.org/10.1111/1755-0998.13618 
