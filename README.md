@@ -21,4 +21,5 @@ If I've come this far (fingers crossed), I will also explore validation techniqu
 References
 Li H. and Durbin R. (2009) Fast and accurate short read alignment with Burrows-Wheeler transform. Bioinformatics, 25, 1754-1760. [PMID: 19451168]. (if you use the BWA-backtrack algorithm)
 
+Presentation: https://rpubs.com/larabreit/week06pres
 
