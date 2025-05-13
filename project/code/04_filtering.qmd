@@ -25,7 +25,22 @@ vcfR <- read.vcfR("~/fish546/lara-zostera/project/data/populations.snps.vcf")
 
 # check metadata present in vcf
 vcfR
+
+head(vcfR, 3)
 ```
+Understanding a VCF file:
+
+**Fixed section** corresponds to per-variant genotype information 
+
+- CHROM: the chromosome where the variant is located (zm has 6 pairs of chromosomes)
+- POS: the 1-based position of the variant on the chromosome
+- ID: a unique identifier for the variant. *unsure how to read format*
+- REF: reference allele
+- ALT: alternate allele, the one that is observed as a variant in this position
+- QUAL: quality score. "NA" indicates either missing or unreported quality scores *ask Bryan about this*
+- FILTER: filter status for this variant. "PASS" indicates that the variant passed filtering criteria during variant calling.
+
+**Genotype section** corresponds to sample-specific data columns of a VCF file; i.e., each sample's genotype at each variant site
 
 Sample size: `r length(colnames(vcfR@gt)[-1])` individuals  
 
