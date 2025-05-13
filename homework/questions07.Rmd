@@ -1,0 +1,35 @@
+---
+title: "Week 07 Questions"
+
+format:
+  html:
+    code-fold: false
+    code-tools: true
+    code-copy: true
+    highlight-style: github
+    code-overflow: wrap
+---
+
+a)  **What is your current grade in the class? How many issues are open in our research repository?**
+
+I think my grade looks good! I have only gotten points taken off of for my incomplete week 5 assignment.
+
+b)  **Re-reading this week's reading, what are 2 things that resonate with you now that made little practical sense in week 2. What is one aspect that you still wonder about or is unclear?**
+
+I had no notion of how "jobs", or code, was initiated, stored, and edited for a bioinformatics workflow. In this sense, considerations of reproducibility were not as important to me the first time I read this paper. After having created and stored scripts and cycled through multiple iterations until finally getting a job to execute properly, reproducibility is definitely at the forefront of my mind, and I note it when I see examples of it in my code or others.
+
+I had no notion of what quality assessment of sequence data looked like when I first read this paper. I now have a general sense of how FastQC and MultiQC work, and what type of information you can obtain from them. I was given high quality data, so I didn't see anything in the multiQC output that raised alarm. I guess I wouldn't know what to do if I saw low quality calls (for example: low phred score). How to remove them?
+
+While I had to work with SAM/BAM files with my data, I am still confused as to how to QC them. Basically, I had a lot of trouble running stacks (variant calling) after alignment because some of the input files (BAM) were essentially corrupted (?) and causing the job to fail.
+
+c)  **What is epigenetics and how could it relate to your own research project?**
+
+Epigenetics is the study of changes in gene expression, but not in DNA, that are heritable, and therefore provide the ability to respond and adapt to selective pressures. I think epigenetics could definitely be leveraged for understanding thermal stress and heritable changes in physiological stress response in eelgrass. Epigenetic variation may also be associated with thermal variation across my geographic study scope.
+
+d)  **Describe what a GFF file is?**
+
+The general feature format (GFF) file is used for comprehensively describing genomic features of DNA, RNA, or proteins. It's delimited with 9 columns per row, where the columns describe the sequence ID, source, type (gene, exon, etc), start, end, score (confidence score), strand (+ or -), phase (?), and attributes (additional semicolon separated information about the genomic feature).
+
+e)  **What are two ways describing CG motifs could have value?**
+
+(1) Since CG sites can be methylated, they can change gene expression and regulation. (2) Characterizing these sites across a genome can help us understand epigenetic variation, which is heritable and therefore can be acted upon by selective pressures. (3) Because they are heritable, they are also linked to diseases. Characterizing these associations and where they are located can help in determining molecular mechanisms behind disease (and interventions / treatments).
