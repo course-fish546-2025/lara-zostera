@@ -11,6 +11,10 @@ format:
     code-overflow: wrap
 ---
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval=FALSE)
+```
+
 ## Assignment
 
 Create and inspect and alignment files. Including visualizing and capturing "outside" graphics. Publish notebook in rpubs and provide link at top of code.
@@ -143,14 +147,10 @@ The code below might not work. That is fine. The VCF in the above chunk can be u
 > output/F143_mpile_calls.vcf
 ```
 
-## Visualize
+## Visualize in IGV!
 
-these data in IGV and get a few cool snapshots.
+![igv viz1 showing .bam file aligned to regference genome](./images/viz1.png)
 
-- render files as a url
+![igv viz2 with a .vcf file, showing no variants found](./images/viz3-with-variants-vcf.png)
 
-Minimally show bam file, and at least 2 genome feature files.
-
-Bonus for annotating screenshots.
-
-Useful link: <https://robertslab.github.io/resources/Genomic-Resources/#crassostrea-gigas-cgigas_uk_roslin_v1>
+![igv viz3 with a .gff file, showing genes](./images/viz2-with-gff.png)
