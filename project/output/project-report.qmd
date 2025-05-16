@@ -1,0 +1,34 @@
+---
+title: "Identifying genome-environment-associations in Zostera marina (eelgrass) using RADseq data"
+author: "Lara Breitkreutz"
+format: html
+editor: visual
+---
+
+## Project background
+
+## Acknowledgements
+
+## Workflow
+
+## 1.1 Alignment & sorting
+
+## 1.2 Variant calling
+
+## 1.3 Filtering
+
+## 2.1 Temperature data
+
+## 2.2 RDA (1st method)
+
+RDA allows us to do two things:
+
+Determine how the temperature dataset (multiple metrics) is related to genetic variation (allele frequencies) in our dataset
+
+Identify variants with strong association to the environmental data (i.e., outliers), which we then presume may be candidates for selection.
+
+## 2.3 Gradient Forest Modeling (2nd method)
+
+Run the gradient forest model on the allele frequency data for the outlier SNPs and the summarized temperature dataset.
+
+
