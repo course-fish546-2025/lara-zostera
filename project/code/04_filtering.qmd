@@ -11,7 +11,7 @@ library(SNPfiltR)
 library(vcfR)
 ```
 
-```{bash}
+```{bash, eval = FALSE}
 #transfer vcf file from hyak to raven
 rsync --archive --progress --verbose lbreit@klone.hyak.uw.edu:/gscratch/scrubbed/lbreit/fish546/REFMAP/test2/populations.snps.vcf ../data
 
@@ -28,23 +28,24 @@ vcfR
 
 head(vcfR, 3)
 ```
+
 Understanding a VCF file:
 
-**Fixed section** corresponds to per-variant genotype information 
+**Fixed section** corresponds to per-variant genotype information
 
-- CHROM: the chromosome where the variant is located (zm has 6 pairs of chromosomes)
-- POS: the 1-based position of the variant on the chromosome
-- ID: a unique identifier for the variant. *unsure how to read format*
-- REF: reference allele
-- ALT: alternate allele, the one that is observed as a variant in this position
-- QUAL: quality score. "NA" indicates either missing or unreported quality scores *ask Bryan about this*
-- FILTER: filter status for this variant. "PASS" indicates that the variant passed filtering criteria during variant calling.
+-   CHROM: the chromosome where the variant is located (zm has 6 pairs of chromosomes)
+-   POS: the 1-based position of the variant on the chromosome
+-   ID: a unique identifier for the variant. *unsure how to read format*
+-   REF: reference allele
+-   ALT: alternate allele, the one that is observed as a variant in this position
+-   QUAL: quality score. "NA" indicates either missing or unreported quality scores *ask Bryan about this*
+-   FILTER: filter status for this variant. "PASS" indicates that the variant passed filtering criteria during variant calling.
 
 **Genotype section** corresponds to sample-specific data columns of a VCF file; i.e., each sample's genotype at each variant site
 
-Sample size: `r length(colnames(vcfR@gt)[-1])` individuals  
+Sample size: `r length(colnames(vcfR@gt)[-1])` individuals
 
-Variants: `r nrow(vcfR@fix)` biallelic sites 
+Variants: `r nrow(vcfR@fix)` biallelic sites
 
 AHHH!!!!! IT WORKED!!!!
 
@@ -77,47 +78,141 @@ We want to detect and and remove markers that do not actually represent loci, id
 
 hard_filter(vcfR=vcfR)
 ```
+
 The histogram of dp.matrix shows the full genoptype depth across all genotypes. A very large spike at low depth, and a long tail extending to very high depths (up to 20,000+ reads). Dashed red line is mean depth. Extremely high-depth genotypes may suggest problematic loci. Set both a min and a max for filtering.
 
-The historgram of dp.matrix[dp.matrix <25] shows the distribution of genotype depth for depths less than 25 (close up of the left side of the first histogram). Most genotypes have low sequencing depth. We will proceed with a depth cut-off of 10 (standard), under which genotype calls are unreliable.
+The histogram of dp.matrix\[dp.matrix \<25\] shows the distribution of genotype depth for depths less than 25 (close up of the left side of the first histogram). Most genotypes have low sequencing depth. We will proceed with a depth cut-off of 10 (standard), under which genotype calls are unreliable.
 
 The histogram of gq.matrix shows the distribution of genotype quality (GQ) scores across all genotypes in the dataset. The plot is heavily skewed towards high GQ values. Red dashed line represents mean. Many workflows will remove genotypes with GQ below 30, as lower values indicate less confidence in genotype call.
 
-### genotype depth ≥ 10 and gq > 30
+### genotype depth ≥ 10 and gq \> 30
 
 ```{r}
 vcfR<-hard_filter(vcfR=vcfR, depth = 10, gq = 30)
 ```
 
-### genotype allelic balance < 0.2 and > 0.8
+### genotype allelic balance \< 0.2 and \> 0.8
 
-If a SNP is observed in only one or two readouts of many (e.g., >10), it is likely a sequencing error.
+If a SNP is observed in only one or two readouts of many (e.g., \>10), it is likely a sequencing error.
 
 ```{r}
 # Allelic balance can be measured by comparing the number of reads supporting each allele at a specific locus. 
 vcfR.AB <- filter_allele_balance(vcfR, min.ratio = 0.2, max.ratio = 0.8)
 ```
+
 Still don't quite understand why we filter for allelic imbalance. I know that ...
 
 ### remove monomorphic SNPs
+
 ```{r}
 # filters out non-informative SNPs. A minor allele count (MAC) of 0 provides no genetic variation for analysis
 
 vcfR.depth.AB.mac <- min_mac(vcfR.AB, min.mac = 1) #would we want the MAC threshold to be higher to reduce false positives?
 ```
+
 **after hard filtering**
 
+Sample size: `r length(colnames(vcfR.depth.AB.mac@gt)[-1])` individuals
 
-Sample size: `r length(colnames(vcfR.depth.AB.mac@gt)[-1])` individuals  
+Variants: `r nrow(vcfR.depth.AB.mac@fix)` SNPs
 
-Variants: `r nrow(vcfR.depth.AB.mac@fix)` SNPs      
+## soft filtering
 
+```{r soft_filtering_1, echo=TRUE, message=FALSE, warning=FALSE}
+
+# Remove LOCI with > 20% missing data
+vcfR.depth.AB.mac.snp <- missing_by_snp(vcfR.depth.AB.mac, cutoff = 0.5)
+
+# Keep one SNP per RAD
+vcfR_maf <- vcfR::maf(vcfR.depth.AB.mac.snp) # calculate MAF per locus
+vcfR_maf_df <- as.data.frame(vcfR_maf) # transform to data frame for manipulation
+vcfR_maf_df$Tag <- sub("\\:.*", "", rownames(vcfR_maf)) # separate tag IDs
+vcfR_maf_df$Number <- 1:length(vcfR_maf_df$Tag) # just number all the rows
+
+vcfR_maf_df_sum <- vcfR_maf_df %>%
+  tibble::rownames_to_column('Site') %>% # turn row names into a variable
+  dplyr::group_by(Tag) %>% # group observations by Tag ID
+  dplyr::slice(which.max(Frequency)) %>% # keep observations with highest maf
+  dplyr::arrange(Number) # sort by increasing
+
+vcfR.depth.AB.mac.snp.thin <- vcfR.depth.AB.mac.snp[c(vcfR_maf_df_sum$Number),] # subset those observations from the previous vcf
+
+head(vcfR.depth.AB.mac.snp.thin)
+```
+*Why are we thinning to one SNP per RAD tag?*
+
+Multiple SNPs within RAD tags can complicate linkage disequilibrium (LD) analyses, as SNPs from the same tag are physically linked. Pipelines often thin SNPs to one SNP per RAD tag (as we've done here). Retaining the SNP with the highest minor allele frequency (MAF) ensures genetic informativeness while minimizing LD bias.
+
+Pre-thinning: `r nrow(vcfR.depth.AB.mac.snp@fix)` SNPs
+
+Post-thinning: `r nrow(vcfR.depth.AB.mac.snp.thin@fix)` loci
+
+### Remove individuals with > 20% missing data and append location metadata (site, region)
+
+```{r soft_filtering_2, echo=TRUE, message=FALSE, warning=FALSE}
+# Remove INDIVIDUALS with > 20% missing data
+vcfR.depth.AB.mac.snp.thin.ind <- missing_by_sample(vcfR.depth.AB.mac.snp, cutoff = 0.5)
+
+# Upload complementary data on labels and additional aspects
+my_genlight <- vcfR2genlight(vcfR.depth.AB.mac.snp.thin.ind) # turn vcf into genlight
+
+#extra.data <- "D:/Ubuntu/Eelgrass/REFMAP/ids/Rmap_LH.txt"
+#metadata <- read.delim(extra.data, stringsAsFactors = FALSE) #upload IDs
+
+specific_data <- popmap[(popmap$id %in% indNames(my_genlight)),] # subsample IDs for those in the dataset
+pop(my_genlight) <- specific_data$pop # add population to genlight
+```
+
+**After Soft Filtering**
+
+Sample size: `r length(indNames(my_genlight))` individuals  
+
+Variants: `r length(locNames(my_genlight))` loci
+
+STOPPED HERE
+
+## MAF & HWE
+
+```{r dartr, message=FALSE, warning=FALSE, include=TRUE, echo=TRUE, results='hide'}
+
+# dartr check1
+my_genlight <- gl.compliance.check(my_genlight)
+
+```
+
+dartR will not install successfully. Trying new package with similar SNP filtering functionality, "usefulRcode"
+
+```{r maf, echo=TRUE, message=FALSE, warning=FALSE}
+install.packages("userfulRcode")
+library(usefulRcode)
+
+# Remove LOCI with MAF < 0.05 in each of all the populations
+genlight_maf <- gl.filter.maf(my_genlight, threshold = 0.05, by.pop = T, pop.limit = 4)
+```
+
+```{r hwe, echo=TRUE, message=FALSE, warning=FALSE}
+
+# Remove LOCI with significant HWE in each of all the populations
+genlight_final <- gl.filter.hwe(genlight_maf, n.pop.threshold = 4)
+
+```
+
+**Filtered Dataset**
+
+Sample size: `r length(indNames(genlight_final))` individuals  
+
+Variants: `r length(locNames(genlight_final))` loci
+
+### 5. Saving filtered file
+
+```{r save, echo=TRUE, message=FALSE, warning=FALSE, include=TRUE, echo=TRUE, results='hide'}
+
+gl2genepop(genlight_final, outpath=getwd(), outfile = "./genepop_final.gen") # save the final genepop file  
 
 ## References
 
-DeRaad, D.A. (2022), SNPfiltR: an R package for interactive and reproducible SNP filtering. Molecular Ecology Resources, 22, 2443-2453. http://doi.org/10.1111/1755-0998.13618 
+DeRaad, D.A. (2022), SNPfiltR: an R package for interactive and reproducible SNP filtering. Molecular Ecology Resources, 22, 2443-2453. http://doi.org/10.1111/1755-0998.13618
 
 Knaus, Brian J., and Niklaus J. Grunwald. 2017. VCFR: a package to manipulate and visualize variant call format data in R. Molecular Ecology Resources, 17.1:44-53. http://doi.org/10.1111/1755-0998.12549
 
-O’Leary, S. J., Puritz, J. B., Willis, S. C., Hollenbeck, C. M., & Portnoy, D. S. (2018). These aren’t the loci you’e looking for: Principles of effective SNP filtering for molecular ecologists. Molecular Ecology, 27(16), 3193–3206. https://doi.org/10.1111/mec.14792
-
+O'Leary, S. J., Puritz, J. B., Willis, S. C., Hollenbeck, C. M., & Portnoy, D. S. (2018). These aren't the loci you'e looking for: Principles of effective SNP filtering for molecular ecologists. Molecular Ecology, 27(16), 3193--3206. https://doi.org/10.1111/mec.14792
