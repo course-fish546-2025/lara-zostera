@@ -1,0 +1,24 @@
+---
+title: "Week 08 Questions"
+
+format:
+  html:
+    code-fold: false
+    code-tools: true
+    code-copy: true
+    highlight-style: github
+    code-overflow: wrap
+---
+
+a)  **What is a genomic range and what 3 types of information do you need for a range?**
+
+Genomic ranges are essentially intervals (x to y, where x and y are integers) that describe a specific location on the genome. They need three pieces of information to be appropriately and uniquely characterized: chromosome ID, the range x:y, where x and y are integers denoting start and end positions, and the strand (forward or reverse). 
+ 
+b)  **What does 0-based and 1-based refer to? What are the advantages and disadvantages of each?**
+
+When working with ranges, different softwares approach delineation differently (there are two ways). A software that uses a 0-based coordinate system will... , while one that uses a 1-based coordinate system will...
+
+c)  **What is the value of BEDtools over the bioconductor package GenomicRange?**
+
+d)  **Describe one subcommand of the BEDtools suite as well as a practical use case.**
+
