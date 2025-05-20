@@ -7,21 +7,27 @@ editor: visual
 ## .vcf files from single nucleotide variant calling with ref_map.pl in STACKS
 
 ```{r}
+#Install current development version directly from GitHub
+library(devtools)
+devtools::install_github("DevonDeRaad/SNPfiltR")
+
 library(SNPfiltR)
 library(vcfR)
 ```
 
 ```{bash, eval = FALSE}
+#don't run if on local computer
+
 #transfer vcf file from hyak to raven
-rsync --archive --progress --verbose lbreit@klone.hyak.uw.edu:/gscratch/scrubbed/lbreit/fish546/REFMAP/test2/populations.snps.vcf ../data
+rsync lbreit@klone.hyak.uw.edu:/gscratch/scrubbed/lbreit/fish546/REFMAP/test2/populations.snps.vcf ../data
 
 #transfer pop map from hyak to raven
-rsync --archive --progress --verbose lbreit@klone.hyak.uw.edu:/mmfs1/home/lbreit/fish546/popmap_test2.txt ../data
+rsync lbreit@klone.hyak.uw.edu:/mmfs1/home/lbreit/fish546/popmap_test2.txt ../local_data
 ```
 
 ```{r}
 #read vcf into this R session as vcfR 
-vcfR <- read.vcfR("~/fish546/lara-zostera/project/data/populations.snps.vcf")
+vcfR <- read.vcfR("C:/Users/lbreit/Documents/lara-zostera/project/local_data/populations.snps.vcf")
 
 # check metadata present in vcf
 vcfR
@@ -52,7 +58,7 @@ AHHH!!!!! IT WORKED!!!!
 ```{r}
 #pop map
 #read all lines from the file
-lines <- readLines("../data/popmap_test2.txt")
+lines <- readLines("../local_data/popmap_test2.txt")
 
 # Filter out lines that start with '#'
 lines <- lines[!grepl("^#", lines)]
@@ -89,6 +95,9 @@ The histogram of gq.matrix shows the distribution of genotype quality (GQ) score
 
 ```{r}
 vcfR<-hard_filter(vcfR=vcfR, depth = 10, gq = 30)
+
+#run function to visualize samples
+missing_by_sample(vcfR=vcfR, popmap = popmap)
 ```
 
 ### genotype allelic balance \< 0.2 and \> 0.8
@@ -121,7 +130,7 @@ Variants: `r nrow(vcfR.depth.AB.mac@fix)` SNPs
 ```{r soft_filtering_1, echo=TRUE, message=FALSE, warning=FALSE}
 
 # Remove LOCI with > 20% missing data
-vcfR.depth.AB.mac.snp <- missing_by_snp(vcfR.depth.AB.mac, cutoff = 0.5)
+vcfR.depth.AB.mac.snp <- missing_by_snp(vcfR.depth.AB.mac, cutoff = 0.8)
 
 # Keep one SNP per RAD
 vcfR_maf <- vcfR::maf(vcfR.depth.AB.mac.snp) # calculate MAF per locus
@@ -139,6 +148,7 @@ vcfR.depth.AB.mac.snp.thin <- vcfR.depth.AB.mac.snp[c(vcfR_maf_df_sum$Number),] 
 
 head(vcfR.depth.AB.mac.snp.thin)
 ```
+
 *Why are we thinning to one SNP per RAD tag?*
 
 Multiple SNPs within RAD tags can complicate linkage disequilibrium (LD) analyses, as SNPs from the same tag are physically linked. Pipelines often thin SNPs to one SNP per RAD tag (as we've done here). Retaining the SNP with the highest minor allele frequency (MAF) ensures genetic informativeness while minimizing LD bias.
@@ -151,7 +161,7 @@ Post-thinning: `r nrow(vcfR.depth.AB.mac.snp.thin@fix)` loci
 
 ```{r soft_filtering_2, echo=TRUE, message=FALSE, warning=FALSE}
 # Remove INDIVIDUALS with > 20% missing data
-vcfR.depth.AB.mac.snp.thin.ind <- missing_by_sample(vcfR.depth.AB.mac.snp, cutoff = 0.5)
+vcfR.depth.AB.mac.snp.thin.ind <- missing_by_sample(vcfR.depth.AB.mac.snp, cutoff = 0.2)
 
 # Upload complementary data on labels and additional aspects
 my_genlight <- vcfR2genlight(vcfR.depth.AB.mac.snp.thin.ind) # turn vcf into genlight
@@ -159,53 +169,77 @@ my_genlight <- vcfR2genlight(vcfR.depth.AB.mac.snp.thin.ind) # turn vcf into gen
 #extra.data <- "D:/Ubuntu/Eelgrass/REFMAP/ids/Rmap_LH.txt"
 #metadata <- read.delim(extra.data, stringsAsFactors = FALSE) #upload IDs
 
-specific_data <- popmap[(popmap$id %in% indNames(my_genlight)),] # subsample IDs for those in the dataset
-pop(my_genlight) <- specific_data$pop # add population to genlight
+specific_data <- popmap[(popmap$id %in% adegenet::indNames(my_genlight)),] # subsample IDs for those in the dataset
+
+adegenet::pop(my_genlight) <- specific_data$pop # add population to genlight
 ```
 
 **After Soft Filtering**
 
-Sample size: `r length(indNames(my_genlight))` individuals  
+Sample size: `r length(indNames(my_genlight))` individuals
 
 Variants: `r length(locNames(my_genlight))` loci
 
-
-Getting an error with dartR functions. The error occurs because the R package terra (a dependency for dartR) requires the GDAL system library, which is not properly installed or configured. Here's how to resolve this:
-
-Step 1: Install GDAL and Dependencies
-On Ubuntu/Debian:
-```{r engine='bash'}
-sudo apt-get update
-sudo apt-get install -y libgdal-dev libproj-dev gdal-bin proj-bin
-```
+STOPPED HERE
 
 ## MAF & HWE
 
 ```{r dartr, message=FALSE, warning=FALSE, include=TRUE, echo=TRUE, results='hide'}
+install.packages("dartRverse")
+library(dartRverse)
+install.packages("dartR.base")
+
+dartRverse_install()
 
 # dartr check1
-my_genlight <- gl.compliance.check(my_genlight)
+my_genlight <- dartR.base::gl.compliance.check(my_genlight)
 
 ```
 
-dartR will not install successfully. Trying new package with similar SNP filtering functionality, "melfuR"
-
 ```{r maf, echo=TRUE, message=FALSE, warning=FALSE}
+#dartRverse_install("all")
+
+# bioconductor package:
+install.packages('BiocManager')
+BiocManager::install('SNPRelate')
+# core packages:
+library(dartRverse)
+dartRverse_install('dartR.base', rep='CRAN')
+#installs also dartR.data
+# additional packages:
+dartRverse_install('dartR.popgen', rep='CRAN')
+dartRverse_install('dartR.captive', rep='CRAN')
+dartRverse_install('dartR.sim', rep='CRAN')
+dartRverse_install('dartR.spatial', rep='CRAN')
+dartRverse_install('dartR.sexlinked', rep='CRAN')
 
 # Remove LOCI with MAF < 0.05 in each of all the populations
-genlight_maf <- gl.filter.maf(my_genlight, threshold = 0.05, by.pop = T, pop.limit = 4)
+genlight_maf <- dartR.base::gl.filter.maf(my_genlight, threshold = 0.05, by.pop = T, pop.limit = 15)
+
 ```
 
 ```{r hwe, echo=TRUE, message=FALSE, warning=FALSE}
+if (!require("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+
+BiocManager::install("snpStats")
+
+library(snpStats)
+
+install.packages("HardyWeinberg")
+library(HardyWeinberg)
 
 # Remove LOCI with significant HWE in each of all the populations
-genlight_final <- gl.filter.hwe(genlight_maf, n.pop.threshold = 4)
+genlight_final <- dartR.base::gl.filter.hwe(genlight_maf, n.pop.threshold = 15)
 
 ```
+if MAF = 1 or SNP is out of HWE at all sites, it's likely a technicality. Remove SNP.
+
+If we remove a lot of variance b/c they are low frequency (regarding MAF), it may be a lot of variation in low frequencies.
 
 **Filtered Dataset**
 
-Sample size: `r length(indNames(genlight_final))` individuals  
+Sample size: `r length(indNames(genlight_final))` individuals
 
 Variants: `r length(locNames(genlight_final))` loci
 
@@ -213,8 +247,9 @@ Variants: `r length(locNames(genlight_final))` loci
 
 ```{r save, echo=TRUE, message=FALSE, warning=FALSE, include=TRUE, echo=TRUE, results='hide'}
 
-gl2genepop(genlight_final, outpath=getwd(), outfile = "./genepop_final.gen") # save the final genepop file  
+dartR.base::gl2genepop(genlight_final, outpath=getwd(), outfile = "../output/genepop_final.gen") # save the final genepop file
 
+```
 ## References
 
 DeRaad, D.A. (2022), SNPfiltR: an R package for interactive and reproducible SNP filtering. Molecular Ecology Resources, 22, 2443-2453. http://doi.org/10.1111/1755-0998.13618
