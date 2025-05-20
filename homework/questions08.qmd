@@ -16,9 +16,13 @@ Genomic ranges are essentially intervals (x to y, where x and y are integers) th
  
 b)  **What does 0-based and 1-based refer to? What are the advantages and disadvantages of each?**
 
-When working with ranges, different softwares approach delineation differently (there are two ways). A software that uses a 0-based coordinate system will... , while one that uses a 1-based coordinate system will...
+When working with ranges, different softwares approach delineation differently (there are two ways). A software that uses a 0-based coordinate system will denote the start position as the first integer (inclusive, denoted by brackets), and denote the end position as the last integer of the interval - 1 (exclusive, denoted by parenthesis). This type of indexing is used by python! Alternatively, a software that uses a 1-based coordinate system will include both the start and end integers of a range (inclusive, denoted by brackets on both ends). While the 1-based system might sound more intuitive at first because it is most similar to how we naturally count, an advantage to using the 0-based system is identifying features between bases (e.g., a cut site of a restriction enzyme)
 
 c)  **What is the value of BEDtools over the bioconductor package GenomicRange?**
 
+It can be more convenient to work in with range data in command line. This is what BEDtools allows over the packages in R. You are compromising flexibility and customizability, but it is faster.
+
 d)  **Describe one subcommand of the BEDtools suite as well as a practical use case.**
+
+One command via BEDtools is *intersect*, which will return the overlapping genomic range between two BED files. In addition to the example you provided (genes and regulatory regions), I could see this being useful for me for understanding the proportion of reads that are overlapping with genes that are annotated to a certain function, like thermal resilience or response to thermal stress (I have no idea what these functions would be mechanistically, but I could guess it would be cuing some sort of downstream physiological response). 
 
