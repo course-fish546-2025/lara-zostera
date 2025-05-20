@@ -169,7 +169,15 @@ Sample size: `r length(indNames(my_genlight))` individuals
 
 Variants: `r length(locNames(my_genlight))` loci
 
-STOPPED HERE
+
+Getting an error with dartR functions. The error occurs because the R package terra (a dependency for dartR) requires the GDAL system library, which is not properly installed or configured. Here's how to resolve this:
+
+Step 1: Install GDAL and Dependencies
+On Ubuntu/Debian:
+```{r engine='bash'}
+sudo apt-get update
+sudo apt-get install -y libgdal-dev libproj-dev gdal-bin proj-bin
+```
 
 ## MAF & HWE
 
@@ -180,11 +188,9 @@ my_genlight <- gl.compliance.check(my_genlight)
 
 ```
 
-dartR will not install successfully. Trying new package with similar SNP filtering functionality, "usefulRcode"
+dartR will not install successfully. Trying new package with similar SNP filtering functionality, "melfuR"
 
 ```{r maf, echo=TRUE, message=FALSE, warning=FALSE}
-install.packages("userfulRcode")
-library(usefulRcode)
 
 # Remove LOCI with MAF < 0.05 in each of all the populations
 genlight_maf <- gl.filter.maf(my_genlight, threshold = 0.05, by.pop = T, pop.limit = 4)
