@@ -1,0 +1,53 @@
+---
+title: "05_poppR"
+format: html
+editor: visual
+---
+
+## Analysis of multilocus lineages using **poppr** package
+
+```{r}
+#install.packages("poppr")
+#install.packages("here")
+library(poppr)
+library(here)
+```
+
+```{r}
+library(here)
+getwd()
+
+# for a Genepop .gen file
+genind_obj <- import2genind(here::here("project/output", "genepop_final.gen"))
+
+head(genind_obj)
+unique(genind_obj@pop)
+```
+
+```{r}
+## NOT WORKING ##
+# check original MLG count
+mlg(genind_obj) # Original multilocus genotypes
+
+# convert the existing population factor to strata
+strata(genind_obj) <- data.frame(pop = factor(pop(genind_obj)))
+
+#verify strata structure
+str(genind_obj@strata)      # Should show "Factor" type
+levels(genind_obj@strata$pop)  # Should match original population levels
+
+# clone-correct by population
+genind_cc <- clonecorrect(genind_obj, strata = ~pop)
+
+# verify corrected MLGs
+mlg(genind_cc)  # reduced count compared to mlg(genind_obj)
+
+# run poppr summary statistics
+poppr(genind_cc)
+```
+
+
+
+```{r}
+citation(package = "poppr")
+```
