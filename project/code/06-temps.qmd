@@ -1,0 +1,316 @@
+---
+title: "06-temperature-data"
+format: html
+editor: visual
+---
+
+#### packages
+``` {r}
+library(dplyr)
+library(tidyr)
+library(hms)
+library(ggplot2)
+library(lubridate)
+```
+
+### Load temp data
+
+```{r}
+gh_temp <- read.csv(here::here("project/data", "qc.23-24.temperature.GH.csv"))
+mi_temp <- read.csv(here::here("project/data", "qc.23-24.temperature.MI.csv"))
+nr_temp <- read.csv(here::here("project/data", "qc.23-24.temperature.NR.csv"))
+ci_temp <- read.csv(here::here("project/data", "qc.23-24.temperature.CI.csv"))
+cp_temp <- read.csv(here::here("project/data", "qc.23-24.temperature.CP.csv"))
+wb_temp <- read.csv(here::here("project/data", "qc.23-24.temperature.WB.csv"))
+pg_temp <- read.csv(here::here("project/data", "qc.23-24.temperature.PG.csv"))
+```
+
+### Assess quality
+
+```{r}
+# Put temp datasets into a list
+temp_list <- list(gh_temp, mi_temp, nr_temp, ci_temp, cp_temp, wb_temp, pg_temp)
+
+# Specify the columns you want to convert to factors
+factor_cols <- c("site", "summary", "habitat")
+
+# Loop over each dataset and convert specified columns to factors
+for (i in seq_along(temp_list)) {
+  temp_list[[i]][factor_cols] <- lapply(temp_list[[i]][factor_cols], as.factor)
+}
+
+gh_temp <- temp_list[[1]]
+mi_temp <- temp_list[[2]]
+nr_temp <- temp_list[[3]]
+ci_temp <- temp_list[[4]]
+cp_temp <- temp_list[[5]]
+wb_temp <- temp_list[[6]]
+pg_temp <- temp_list[[7]]
+
+# check
+str(gh_temp)
+
+
+for (i in seq_along(temp_list)) {
+  plot(temp_list[[i]]$summary)
+}
+```
+
+### Filtering and subsetting
+
+```{r}
+# Desired factor level to retain, only retaining records that passed QC
+desired_level1 <- "PASS"
+# Desired factor level to retain, only retaining records that are located in eelgrass
+desired_level2 <- "E"
+
+# Filter each data frame in the list
+filtered_list <- lapply(temp_list, function(df) {
+  df[df$summary == desired_level1 & df$habitat == desired_level2, ]
+})
+
+#check
+str(filtered_list[[1]])
+
+```
+
+### Calculate daily summary statistics
+
+```{r}
+
+filtered_list <- lapply(filtered_list, function(df) {
+  df$datetime <- as.POSIXct(df$date.time, format = "%m/%d/%Y %H:%M")
+  df$date <- as.Date(df$datetime)
+  df$time <- format(df$datetime, "%H:%M")
+  return(df)  # Explicitly return the modified dataframe
+})
+
+#check
+str(filtered_list[[1]])
+
+filtered_list <- lapply(filtered_list, function(df) {
+  df[, c("site", "date", "time", "qc_temp")]
+})
+
+#check
+str(filtered_list[[1]])
+
+tbase <- 5  # Set base temperature for GDD
+
+# Function to calculate daily stats
+calculate_daily_stats <- function(df) {
+  df %>%
+    group_by(site, date) %>%
+    summarize(
+      daily_mean_temp = mean(qc_temp, na.rm = TRUE),
+      daily_max_temp = max(qc_temp, na.rm = TRUE),
+      daily_min_temp = min(qc_temp, na.rm = TRUE),
+      daily_90th = quantile(qc_temp,0.9,na.rm = TRUE),
+      daily_10th = quantile(qc_temp,0.1,na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
+    mutate(
+      daily_range_temp = daily_max_temp - daily_min_temp,
+      daily_corrected_range_temp = daily_90th - daily_10th,
+      gdd = ifelse((daily_90th + daily_10th)/2 <= tbase, 0, (daily_90th + daily_10th)/2-tbase), # GDD can't be negative
+      cumulative_gdd = cumsum(gdd))
+}
+
+# Apply to all dataframes in list
+result_list <- lapply(filtered_list, calculate_daily_stats)
+
+#check
+str(result_list[[1]])
+
+gh_temp <- result_list[[1]]
+mi_temp <- result_list[[2]]
+nr_temp <- result_list[[3]]
+ci_temp <- result_list[[4]]
+cp_temp <- result_list[[5]]
+wb_temp <- result_list[[6]]
+pg_temp <- result_list[[7]]
+```
+
+### Visualize mean daily temps
+
+```{r}
+# Combine into one data frame
+plot_data <- bind_rows(result_list)
+
+# Plot
+ggplot(plot_data, aes(x = date, y = daily_mean_temp, color = site)) +
+  geom_point() +
+  labs(
+    title = "Mean daily temp by site",
+    x = "date",
+    y = "mean daily temp",
+    color = "Site"
+  ) +
+  theme_minimal()
+
+ggplot(plot_data, aes(x = date, y = daily_mean_temp, color = site)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = daily_min_temp, ymax = daily_max_temp), width = 0.2) +
+  labs(
+    title = "mean daily temp and range (minima and maxima)",
+    x = "Date",
+    y = "Temperature",
+    color = "Site"
+  ) +
+  theme_minimal()
+
+ggplot(plot_data, aes(x = date, y = daily_mean_temp, color = site)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = daily_90th, ymax = daily_10th), width = 0.2) +
+  labs(
+    title = "mean daily temp and corrected range (90th and 10th quartiles)",
+    x = "Date",
+    y = "Temperature",
+    color = "Site"
+  ) +
+  theme_minimal()
+```
+
+### More filtering - for common dates
+```{r}
+# Get dates with valid qc_temp from all datasets
+valid_dates_list <- lapply(result_list, function(df) {
+  df %>% 
+    filter(!is.na(daily_mean_temp)) %>% 
+    pull(date) %>%
+    as.Date() %>%  # Ensure Date class
+    unique()
+})
+
+# Find common dates
+common_dates <- Reduce(intersect, valid_dates_list)
+
+# Filter each dataset
+filtered_result_list <- lapply(result_list, function(df) {
+  filter(df, date %in% common_dates)
+})
+
+#check
+str(filtered_result_list[[1]])
+```
+
+### Visualize only dates for which all sites have temp data
+
+```{r}
+
+# Combine into one data frame
+plot_data <- bind_rows(filtered_result_list)
+
+# Plot
+ggplot(plot_data, aes(x = date, y = daily_mean_temp, color = site)) +
+  geom_point() +
+  labs(
+    title = "Mean daily temp by site",
+    x = "date",
+    y = "mean daily temp",
+    color = "Site"
+  ) +
+  theme_minimal()
+
+ggplot(plot_data, aes(x = date, y = daily_mean_temp, color = site)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = daily_90th, ymax = daily_10th), width = 0.2) +
+  labs(
+    title = "mean daily temp and corrected range (90th and 10th quartile)",
+    x = "Date",
+    y = "Temperature",
+    color = "Site"
+  ) +
+  theme_minimal()
+```
+
+### Define seasons and calculate final seasonal metrics
+
+#### Define seasons
+```{r}
+add_seasons <- function(df) {
+  df %>%
+    mutate(
+      season = case_when(
+        month(date) %in% 3:5  ~ "Spring",
+        month(date) %in% 6:8  ~ "Summer",
+        month(date) %in% 9:11 ~ "Fall",
+        TRUE                  ~ "Winter"
+      )
+    )
+}
+
+# Apply to all dataframes
+season_list <- lapply(filtered_result_list, add_seasons)
+
+#check
+str(season_list[[1]])
+
+# Combine into one data frame
+plot_data <- bind_rows(season_list)
+
+# Plot
+ggplot(plot_data, aes(x = date, y = daily_mean_temp, color = season)) +
+  geom_point() +
+  labs(
+    title = "Mean daily temp by site",
+    x = "date",
+    y = "mean daily temp",
+    color = "Site"
+  ) +
+  theme_minimal()
+```
+
+#### Calculate summary statistics
+
+```{r}
+# Function to calculate seasonal stats (means of daily stats)
+
+calculate_seasonal_stats <- function(df) {
+  df %>%
+    group_by(site, season) %>%
+    summarize(
+      seasonal_mean = mean(daily_mean_temp, na.rm = TRUE),
+      seasonal_max = mean(daily_max_temp, na.rm = TRUE),
+      seasonal_min = mean(daily_min_temp, na.rm = TRUE),
+      seasonal_90th = mean(daily_90th, na.rm = TRUE),
+      seasonal_10th = mean(daily_10th, na.rm = TRUE),
+      seasonal_range = mean(daily_range_temp, na.rm = TRUE),
+      seasonal_corrected_range = mean(daily_corrected_range_temp, na.rm = TRUE),
+      seasonal_avg_gdd = mean(gdd),
+      .groups = "drop"
+    )
+}
+
+# Apply to all dataframes in list
+summarized_season_list <- lapply(season_list, calculate_seasonal_stats)
+
+#check
+str(summarized_season_list[[1]])
+
+# Combine into one data frame
+summarized_temp_data <- bind_rows(summarized_season_list)
+
+head(summarized_temp_data)
+```
+
+### Visualize seasonal metrics
+
+```{r}
+# Plot
+ggplot(summarized_temp_data, aes(x = season, y = seasonal_mean, color = site)) +
+  geom_point() +
+  labs(
+    title = "Mean daily temp by site",
+    x = "date",
+    y = "mean daily temp",
+    color = "Site"
+  ) +
+  theme_minimal()
+
+```
+### Export to .csv for GEA analysis
+```{r}
+# writing data to a CSV file
+write.csv(summarized_temp_data, here("project/data", "anemone_temps.csv"), row.names = FALSE)
+```
