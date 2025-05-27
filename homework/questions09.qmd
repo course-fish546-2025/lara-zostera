@@ -1,0 +1,27 @@
+---
+title: "Week 09 Questions"
+
+format:
+  html:
+    code-fold: false
+    code-tools: true
+    code-copy: true
+    highlight-style: github
+    code-overflow: wrap
+---
+
+1. **What is your goal with respect to your research project to get accomplished this week?**
+
+This week, I want to finish interpreting my RDA (which I've run), and begin on the second analytical method: Latent factor mixed modeling, which is a univariate method that tests each loci individually for an association with temperature.
+
+2. **What is the overall status of your research repo? Is it will organized with a clear Readme file? Are file names and directory clear? Would your classmates be able to understand what the code in your files is designed to do?**
+
+My research repo has the following: a Readme file *that will be updated upon project completion, with a link to the final report*, and three main directories: assignments, homework, and project. In the project folder, you will find four folders: code, data, output files (often also data used for downstream analyses) and images (to support the final report). I've been trying to annotate my code as I go, and I will continue to do so, with a final look when I submit my project report.
+
+3. **Go to one of your classmates rpubs link (see issues). What are three things you think are neat? What are two things that are really not that clear to you?**
+
+I went to Renee's rpubs link of her project report. She did a great job consistently annotating her workflow; I can follow along quite clearly. I like her use of headings and subheadings, and I plan to similarly organize my report. Lastly, I like that she included a description of the packages she used. This provides context and sets the scope for the analysis that follows. 
+
+I would've liked to see a discussion of the multiQC file, since you nicely interpretted the other outputs in the document. Maybe it's not important, though? Even a sentence would have been nice!
+
+Honestly, no other notes! Super excited to see what you end up finding!!
