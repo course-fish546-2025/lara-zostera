@@ -11,6 +11,7 @@ editor: visual
 #install.packages("here")
 library(poppr)
 library(here)
+library(dartRverse)
 ```
 
 ```{r}
@@ -25,28 +26,30 @@ unique(genind_obj@pop)
 ```
 
 ```{r}
-## NOT WORKING ##
-# check original MLG count
-mlg(genind_obj) # Original multilocus genotypes
+### From Bryan
+genlight_clones <- gi2gl(genind_obj) #genind to genlight
 
-# convert the existing population factor to strata
-strata(genind_obj) <- data.frame(pop = factor(pop(genind_obj)))
+## Choosing a threshold
+thresholds <- filter_stats(genlight_clones,  plot = TRUE)
+#print(thresholds)
+str(thresholds)
 
-#verify strata structure
-str(genind_obj@strata)      # Should show "Factor" type
-levels(genind_obj@strata$pop)  # Should match original population levels
+print(farthest_thresh <- cutoff_predictor(thresholds$farthest$THRESHOLDS))
+print(average_thresh <- cutoff_predictor(thresholds$average$THRESHOLDS))
+print(nearest_thresh <- cutoff_predictor(thresholds$nearest$THRESHOLDS))
 
-# clone-correct by population
-genind_cc <- clonecorrect(genind_obj, strata = ~pop)
+gi <- gl2gi(genlight_clones)
+gc <- as.genclone(gi, mlgclass = TRUE)
 
-# verify corrected MLGs
-mlg(genind_cc)  # reduced count compared to mlg(genind_obj)
+strata(gc) <- data.frame(pop(genlight_clones))
 
-# run poppr summary statistics
-poppr(genind_cc)
+## Removing Clones
+mlg.filter(gc, distance = nei.dist, missing = "mean") <- nearest_thresh
+
+genind_final_cc <- clonecorrect(gc) # Actually remove clones with poppr
+
+filter_stats(genind_final_cc, plot = T)
 ```
-
-
 
 ```{r}
 citation(package = "poppr")
