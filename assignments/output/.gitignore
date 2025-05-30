@@ -3,3 +3,4 @@ kallisto_01.isoform.counts.matrix
 kallisto_01.isoform.TMM.EXPR.matrix
 kallisto_01.isoform.TPM.not_cross_norm
 kallisto_01.isoform.TPM.not_cross_norm.runTMM.R
+08-19F.bed
