@@ -10,12 +10,17 @@ editor: visual
 
 ```{r}
 library(vegan)
-#library(LEA)
+library(LEA)
 library(ggplot2)
 library(corrplot)
 library(caret)
 library(poppr)
 library(here)
+library(dplyr)
+library(tidyr)
+library(ggrepel)
+library(PCAtest)
+library(dartRverse)
 ```
 
 ## Import data:
@@ -86,8 +91,6 @@ genind_obj <- read.genepop(
   ncode = 2,   # or 3, depending on your allele coding
   quiet = FALSE
 )
-
-genind_obj
 ```
 
 #### Convert to population level allele frequencies (and filter for sites that we have env. data for)
@@ -170,9 +173,10 @@ ggplot() +
   theme(legend.position = "right")
 
 print(plot)
-ggsave("C:/Users/lbreit/Documents/Davidson_data/manuscript_figs/pca_temp.png", plot, width = 10, height = 6, units = "in", bg = "white")
 ```
+
 #### Variance explained and permutation tests
+
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 #variance explained by the axes
 summary(eigenvals(pca_result))
@@ -211,7 +215,7 @@ vif.cca(rda.full)
 
 ### Significance testing
 
-```{r}
+```{r echo=FALSE}
 #anova by terms for each rda
 anova.cca(rda.full, permutations = 9999, parallel=20) #global significance = 0.2694
 anova.cca(rda.full,permutations = 999, parallel = 12, by="terms") #suggests no temperature metrics are significant
@@ -244,22 +248,20 @@ text(rda.full,scaling=3, display="bp", col="#0868ac",cex=1, choices=c(1,2))
 legend("right",legend=sites, bty="n",col="gray32", pch=21, cex=1.5, pt.bg=bg)
 ```
 
-### Geographic orientation
+### Geographic orientation of only sites w/ temp info
 
-![Alt text](~/fish546/lara-zostera/project/images/anemone_sites.png)
+![Alt text](C:/Users/lbreit/Documents/lara-zostera/project/images/anemone_sites.png)
 
 ### Latent factor mixed modeling
 
 LFMMs are factor regression models with a **genotype frequency matrix** as the response variable, and **environment** or **trait** values as explanatory variables. 
 ```{r}
-getwd()
 write.table(freq_matrix, "../output/allele_freq.lfmm", 
             sep = " ", 
             row.names = FALSE, 
             col.names = FALSE, 
             na = "9")  # Replace NA with 9) # Save frequency matrix as .lfmm file
 ```
-
 
 #### Assessing population structure - NOT WORKING.
 
@@ -278,18 +280,51 @@ pvals <- lfmm_test(lfmm_model, temp_data)
 adaptive_snps <- which(p.adjust(pvals$pvalues, method = "fdr") < 0.05)
 ```
 
-### Pop structure
+### Assessing population structure using DAPC
+
+#### Infer number of clusters
+
+Choose the number of PCs to retain in relation to the number of individuals in the dataset. This number should not exceed n/3. More PCs --> more clustering.
+
+I will choose 210 PCs.
+
+Choose the best number of K (the smallest BIC value) to keep according to the minimum Cross-validation errror rate gave by the Bayesian Information Criterion. Here, a K equal 3 seems to be the best K to keep.
+
+Check the group size of each genetic cluster found. The step will give you an idea of the releavance of each genetic cluster found.
 
 ```{r}
-genind_obj <- read.genepop(
+snp_data <- read.genepop(
   here::here("project/output", "genepop_final.gen"),
   ncode = 2,   # or 3, depending on your allele coding
   quiet = FALSE
 )
+```
 
-library(dartRverse)
-genlight_obj <- gi2gl(genind_obj) # convert genind obj to genlight
+#### Population data
+```{r}
 
-num_clust <- find.clusters(genlight_obj)
+pop_data <- read.csv(here("project/data", "population_info.csv"))[,3]
 
+pop(snp_data) <- pop_data
+
+unique(genind_obj@pop) #15 populations --> 15 clusters
+
+clusters <- find.clusters(genind_obj, max.n.clust = 15, n.pca = 50)
+```
+
+```{r}
+dapc_result <- dapc(snp_data, clusters$grp, n.pca = 50, n.da = 14)
+
+#xval <- xvalDapc(snp_data, clusters$grp, n.pca.max = 100, n.rep = 50) #finding optimal PCs not working
+#optimal_pcs <- xval$`Number of PCs Achieving Highest Mean Success`
+```
+
+
+```{r}
+scatter(dapc_result, col = rainbow(length(unique(clusters$grp))),
+        scree.da = TRUE, posi.da = "bottomleft")
+```
+
+```{r}
+table(clusters$grp, pop_data)
 ```
