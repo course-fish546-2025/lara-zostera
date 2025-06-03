@@ -27,7 +27,7 @@ rsync lbreit@klone.hyak.uw.edu:/mmfs1/home/lbreit/fish546/popmap_test2.txt ../lo
 
 ```{r}
 #read vcf into this R session as vcfR 
-vcfR <- read.vcfR("C:/Users/lbreit/Documents/lara-zostera/project/local_data/populations.snps.vcf")
+vcfR <- read.vcfR("C:/Users/lbreit/Documents/lara-zostera/project/data/populations.snps.vcf")
 
 # check metadata present in vcf
 vcfR
@@ -58,7 +58,7 @@ AHHH!!!!! IT WORKED!!!!
 ```{r}
 #pop map
 #read all lines from the file
-lines <- readLines("../local_data/popmap_test2.txt")
+lines <- readLines("../data/popmap_test2.txt")
 
 # Filter out lines that start with '#'
 lines <- lines[!grepl("^#", lines)]
@@ -184,19 +184,7 @@ STOPPED HERE
 
 ## MAF & HWE
 
-```{r dartr, message=FALSE, warning=FALSE, include=TRUE, echo=TRUE, results='hide'}
-install.packages("dartRverse")
-library(dartRverse)
-install.packages("dartR.base")
-
-dartRverse_install()
-
-# dartr check1
-my_genlight <- dartR.base::gl.compliance.check(my_genlight)
-
-```
-
-```{r maf, echo=TRUE, message=FALSE, warning=FALSE}
+```{r maf, message=FALSE, warning=FALSE}
 #dartRverse_install("all")
 
 # bioconductor package:
@@ -212,31 +200,29 @@ dartRverse_install('dartR.captive', rep='CRAN')
 dartRverse_install('dartR.sim', rep='CRAN')
 dartRverse_install('dartR.spatial', rep='CRAN')
 dartRverse_install('dartR.sexlinked', rep='CRAN')
+```
+
+```{r echo=TRUE}
+# check that genlight is compliant with dartR expectations
+my_genlight <- dartR.base::gl.compliance.check(my_genlight)
 
 # Remove LOCI with MAF < 0.05 in each of all the populations
 genlight_maf <- dartR.base::gl.filter.maf(my_genlight, threshold = 0.05, by.pop = T, pop.limit = 15)
-
 ```
 
 ```{r hwe, echo=TRUE, message=FALSE, warning=FALSE}
 if (!require("BiocManager", quietly = TRUE))
     install.packages("BiocManager")
-
 BiocManager::install("snpStats")
-
 library(snpStats)
-
 install.packages("HardyWeinberg")
 library(HardyWeinberg)
 
 # Remove LOCI with significant HWE in each of all the populations
 genlight_final <- dartR.base::gl.filter.hwe(genlight_maf, n.pop.threshold = 15)
-
 ```
 
-if MAF = 1 or SNP is out of HWE at all sites, it's likely a technicality. Remove SNP.
-
-If we remove a lot of variance b/c they are low frequency (regarding MAF), it may be a lot of variation in low frequencies.
+if MAF = 1 or SNP is out of HWE at *all* sites, it's likely a technicality. Remove SNP.
 
 **Filtered Dataset**
 
