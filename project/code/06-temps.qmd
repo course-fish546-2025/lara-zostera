@@ -11,6 +11,7 @@ library(tidyr)
 library(hms)
 library(ggplot2)
 library(lubridate)
+library(ggrepel)
 ```
 
 ### Load temp data
@@ -137,8 +138,12 @@ pg_temp <- result_list[[7]]
 # Combine into one data frame
 plot_data <- bind_rows(result_list)
 
+site_colors <-c("#4E9DFE","#FECB00","#994BFF","#250F98","#FD9800","#27BF99")
+
+plot_data <- plot_data %>% filter(site != "CI")
 # Plot
 ggplot(plot_data, aes(x = date, y = daily_mean_temp, color = site)) +
+  scale_color_manual(values = site_colors) +
   geom_point() +
   labs(
     title = "Mean daily temp by site",
@@ -150,6 +155,7 @@ ggplot(plot_data, aes(x = date, y = daily_mean_temp, color = site)) +
 
 ggplot(plot_data, aes(x = date, y = daily_mean_temp, color = site)) +
   geom_point() +
+  scale_color_manual(values = site_colors) +
   geom_errorbar(aes(ymin = daily_min_temp, ymax = daily_max_temp), width = 0.2) +
   labs(
     title = "mean daily temp and range (minima and maxima)",
@@ -161,6 +167,7 @@ ggplot(plot_data, aes(x = date, y = daily_mean_temp, color = site)) +
 
 ggplot(plot_data, aes(x = date, y = daily_mean_temp, color = site)) +
   geom_point() +
+  scale_color_manual(values = site_colors) +
   geom_errorbar(aes(ymin = daily_90th, ymax = daily_10th), width = 0.2) +
   labs(
     title = "mean daily temp and corrected range (90th and 10th quartiles)",
@@ -313,4 +320,51 @@ ggplot(summarized_temp_data, aes(x = season, y = seasonal_mean, color = site)) +
 ```{r}
 # writing data to a CSV file
 write.csv(summarized_temp_data, here("project/data", "anemone_temps.csv"), row.names = FALSE)
+```
+### PCA Analysis - all seasons
+
+```{r}
+# oops we don't need Case Inlet
+summarized_temps_noCI <- summarized_temp_data %>% filter(site != "CI")
+# subset the data
+summarized_temp_data_for_pca <- summarized_temps_noCI[, -c(1:2,4,5,8)]
+
+# Perform PCA
+pca_result <- prcomp(summarized_temp_data_for_pca, center = TRUE, scale = TRUE)
+
+# Create a data frame for variable loadings
+loadings <- as.data.frame(pca_result$rotation)
+loadings$variable <- rownames(loadings)
+
+scores_df <- as.data.frame(pca_result$x) %>%
+  bind_cols(summarized_temps_noCI %>% dplyr::select(site, season))
+
+loadings_df <- as.data.frame(pca_result$rotation) %>%
+  mutate(trait = rownames(.))
+
+site_colors <-c("#4E9DFE","#FECB00","#994BFF","#250F98","#FD9800","#27BF99")
+
+ggplot() +
+  # Plot site*depths
+  geom_point(data = scores_df, aes(x = PC1, y = PC2, color = site, shape = season), size = 2, stroke = 1.25) +
+  #scale_shape_manual(values = c(21, 16)) +
+  scale_color_manual(values = site_colors) + 
+  # Plot loadings
+  geom_segment(data = loadings_df, 
+               aes(x = 0, y = 0, xend = PC1 * 3, yend = PC2 * 3),
+               arrow = arrow(length = unit(0.2, "cm")), color = "black") +
+  # Add loading labels
+  geom_text_repel(data = loadings_df,
+                  aes(x = PC1 * 3, y = PC2 * 3, label = trait),
+                  color = "black", size = 4) +
+  # Add labels and theme
+  labs(title = "PCA Biplot",
+       x = paste0("PC1 (", round(summary(pca_result)$importance[2,1] * 100, 1), "%)"),
+       y = paste0("PC2 (", round(summary(pca_result)$importance[2,2] * 100, 1), "%)")) +
+  theme_minimal() +
+  coord_fixed() +  # This ensures that one unit on x-axis equals one unit on y-axis
+  theme(legend.position = "right")
+
+print(plot)
+ggsave("C:/Users/lbreit/Documents/Davidson_data/manuscript_figs/pca_temp.png", plot, width = 10, height = 6, units = "in", bg = "white")
 ```
