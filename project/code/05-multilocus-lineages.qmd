@@ -7,12 +7,11 @@ editor: visual
 ## Analysis of multilocus lineages using **poppr** package
 
 ```{r}
-#install.packages("poppr")
-#install.packages("here")
 library(poppr)
 library(here)
 library(dartRverse)
 ```
+### Looking at data
 
 ```{r}
 library(here)
@@ -24,9 +23,9 @@ genind_obj <- import2genind(here::here("project/output", "genepop_final.gen"))
 head(genind_obj)
 unique(genind_obj@pop)
 ```
+### Clone correcting
 
 ```{r}
-### From Bryan
 genlight_clones <- gi2gl(genind_obj) #genind to genlight
 
 ## Choosing a threshold
@@ -43,12 +42,31 @@ gc <- as.genclone(gi, mlgclass = TRUE)
 
 strata(gc) <- data.frame(pop(genlight_clones))
 
-## Removing Clones
+## Identifying clones
 mlg.filter(gc, distance = nei.dist, missing = "mean") <- nearest_thresh
 
 genind_final_cc <- clonecorrect(gc) # Actually remove clones with poppr
 
 filter_stats(genind_final_cc, plot = T)
+```
+
+### Saving clone corrected file
+
+```{r save, message=FALSE, warning=FALSE, include=TRUE, echo=TRUE, results='hide'}
+
+# Convert genclone to genind
+genind_final_cc <- poppr::genclone2genind(genind_final_cc)
+
+# Convert genind to genlight (dartR-compliant)
+genlight_final_cc <- dartR::gi2gl(genind_final_cc)
+
+#Ensure compliance with dartR
+genlight_final_cc <- dartR.base::gl.compliance.check(genlight_final_cc)
+
+
+# Export to Genepop format
+dartR.base::gl2genepop(genlight_final_cc, outpath = getwd(), outfile = "../output/genepop_final_cc.gen")
+
 ```
 
 ```{r}
