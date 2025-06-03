@@ -5,7 +5,8 @@ editor: visual
 ---
 
 #### packages
-``` {r}
+
+```{r}
 library(dplyr)
 library(tidyr)
 library(hms)
@@ -179,6 +180,7 @@ ggplot(plot_data, aes(x = date, y = daily_mean_temp, color = site)) +
 ```
 
 ### More filtering - for common dates
+
 ```{r}
 # Get dates with valid qc_temp from all datasets
 valid_dates_list <- lapply(result_list, function(df) {
@@ -234,6 +236,7 @@ ggplot(plot_data, aes(x = date, y = daily_mean_temp, color = site)) +
 ### Define seasons and calculate final seasonal metrics
 
 #### Define seasons
+
 ```{r}
 add_seasons <- function(df) {
   df %>%
@@ -316,7 +319,9 @@ ggplot(summarized_temp_data, aes(x = season, y = seasonal_mean, color = site)) +
   theme_minimal()
 
 ```
+
 ### Export to .csv for GEA analysis
+
 ```{r}
 # writing data to a CSV file
 write.csv(summarized_temp_data, here("project/data", "anemone_temps.csv"), row.names = FALSE)

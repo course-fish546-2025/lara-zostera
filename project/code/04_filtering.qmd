@@ -157,7 +157,7 @@ Pre-thinning: `r nrow(vcfR.depth.AB.mac.snp@fix)` SNPs
 
 Post-thinning: `r nrow(vcfR.depth.AB.mac.snp.thin@fix)` loci
 
-### Remove individuals with > 20% missing data and append location metadata (site, region)
+### Remove individuals with \> 20% missing data and append location metadata (site, region)
 
 ```{r soft_filtering_2, echo=TRUE, message=FALSE, warning=FALSE}
 # Remove INDIVIDUALS with > 20% missing data
@@ -233,6 +233,7 @@ library(HardyWeinberg)
 genlight_final <- dartR.base::gl.filter.hwe(genlight_maf, n.pop.threshold = 15)
 
 ```
+
 if MAF = 1 or SNP is out of HWE at all sites, it's likely a technicality. Remove SNP.
 
 If we remove a lot of variance b/c they are low frequency (regarding MAF), it may be a lot of variation in low frequencies.
@@ -250,6 +251,7 @@ Variants: `r length(locNames(genlight_final))` loci
 dartR.base::gl2genepop(genlight_final, outpath=getwd(), outfile = "../output/genepop_final.gen") # save the final genepop file
 
 ```
+
 ## References
 
 DeRaad, D.A. (2022), SNPfiltR: an R package for interactive and reproducible SNP filtering. Molecular Ecology Resources, 22, 2443-2453. http://doi.org/10.1111/1755-0998.13618
