@@ -181,7 +181,6 @@ Sample size: `r length(indNames(my_genlight))` individuals
 
 Variants: `r length(locNames(my_genlight))` loci
 
-
 ## MAF & HWE
 
 ```{r maf, message=FALSE, warning=FALSE}

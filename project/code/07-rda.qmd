@@ -106,6 +106,7 @@ levels(anemone_temps_all$site) #get ready to run the RDA. sanity check. order sh
 
 write.table(freq_matrix_ordered, file = "../output/freqmatrix.txt", sep = "\t", row.names = FALSE, col.names = TRUE) # save as text file in output
 ```
+
 ### RDA
 
 ```{r}
@@ -159,9 +160,11 @@ anova.cca(rda.full, permutations = 9999, parallel=20) #global significance p < 0
 anova.cca(rda.full,permutations = 999, parallel = 12, by="terms") #suggests no temperature metrics are significant
 anova.cca(rda.full, permutations=1000, parallel=12, by= "axis") #suggests neither RDA1 nor RDA2 are significant
 ```
-The RDA is significant (Pr(>F) < 0.05). The first axis is significant (Pr(>F) < 0.05), and significant loadings are summer maximum and range.
+
+The RDA is significant (Pr(\>F) \< 0.05). The first axis is significant (Pr(\>F) \< 0.05), and significant loadings are summer maximum and range.
 
 ### Identify outlier loci (adaptive candidates)
+
 ```{r}
 loadings <- scores(rda.full, choices = 1:2, display = "species")
 outliers <- which(loadings^2 > quantile(loadings^2, 0.99))  # Top 1% loading scores
@@ -252,6 +255,7 @@ write.table(geno_mat, "../data/genotypes.pcadapt", sep = "\t", quote = FALSE, ro
 ```
 
 #### Plot results
+
 ```{r warning=FALSE}
 # Read into pcadapt
 pcadapt_data <- read.pcadapt("../data/genotypes.pcadapt", type = "pcadapt")
@@ -262,6 +266,7 @@ plot(result, option = "screeplot") # retain first five PCs
 result <- pcadapt(pcadapt_data, K = 5)
 
 populations <- pop(genind_obj) # get populations
+write.csv(data.frame(populations), "../data/populations_forpca.csv", row.names = FALSE)
 
 #extract variance explained by each PC
 singular_vals <- result$singular.values
