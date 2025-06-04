@@ -3,32 +3,515 @@ title: "Identifying genome-environment-associations in Zostera marina (eelgrass)
 author: "Lara Breitkreutz"
 format: html
 editor: visual
+execute:
+      warning: false
 ---
 
-## Project background
+## Project justification and description
 
-## Acknowledgements
+![](../images/eelgrass.png)
+
+Eelgrass serves as critical habitat for many marine and nearshore organisms, as potential climate refuge for shellfish by buffering ocean acidification, and as shoreline protection from erosion through wave attenuation and sediment stabilization. The accelerating pace of climate change, particularly warming and heat wave events (Oliver et al., 2018), increases thermal stress in marine organisms (Smale et al., 2019), and has resulted in dramatic eelgrass declines in the Pacific Northwest United States (Magel et al., 2023). The capacity to adapt to such change is dependent on standing genetic variation that confers fitness benefits related to that change.
+
+**Our lab has described extensive population differentiation in eelgrass across Washington State** (Briones Ortiz et al., in prep). **This structure generally conforms to the oceanographic regions in Washington** (Khangaonkar et al., 2019), **which experience differences in thermal regimes** that may contribute to structure through temperature related adaptive processes. Metrics describing patterns of warming, such as seasonal heat accumulation, daily maximums and daily variability are associated with trait variation in eelgrass within meadows (Wong & Dowd, 2025; Breitkreutz et al., in prep) and differences in productivity and resilience between meadows (Krumshansl et al., 2021).
+
+**ANeMoNe sites across Washington state provide a time series of water temperature from which thermal regimes, particularly patterns of warming, can be characterized.** Genomes from individuals collected across ANeMoNe sites have been sequenced. These data together can be used to survey statistical associations between genotypes and temperature metrics *(genotype-environment associations, or GEAs)* in an effort to identify loci associated with thermal tolerance. After I identify these putatively adaptive loci, I will use a modeling approach based on genomic offsets to predict how likely a population is to adapt to climate change (Bernatchez et al., 2024; Forester et al., 2025).
+
+## Preliminary goal
+
+l aim to create a workflow for conducting genotype-environment association (GEA) analyses using RAD-seq data, beginning with demultiplexed raw reads. This workflow is *not quite complete*; I will outline remaining steps.
 
 ## Workflow
 
-## 1.1 Alignment & sorting
+### Data
+
+I obtained demultiplexed RAD-seq data (quality control checks with **FastQC** conducted prior to obtaining data) of approximately 50 individual samples from each of 15 locations across Washington State. **Six locations were ANeMoNe sites**; however, I will work with all data until GEAs are determined.
+
+![](../images/all_sites.png)
+
+### 1.1 Alignment (to reference genome)
+
+Conducted on hyak in bash.
+
+```{bash, eval=FALSE}
+for DATASET in test2;
+do
+
+## ENVIRONMENT
+source /gscratch/merlab/software/miniconda3/etc/profile.d/conda.sh
+conda activate bwa_env
+
+## VARIABLES
+
+ind_ID=$(cat /mmfs1/home/lbreit/fish546/individuals_${DATASET}.txt | cut -f1)
+#creates variables based on the first col in individuals_rad.txt file, i.e., all the sample names
+REF=/mmfs1/home/lbreit/fish546/reference_genome/assembly/Zmarina_668_v2.0.fa
+# creates variable REF that is the reference genome .fa
+INPUT=/gscratch/scrubbed/lbreit/fish546/DEMULTIPLEXED/${DATASET}
+# creates variable INPUT that is the name of the sample stored in the DEMULTIPLEXED file
+OUTPUT1=/gscratch/scrubbed/lbreit/fish546/ALIGNED/${DATASET}
+# creates variable OUTPUT1 that is the name of the sample (now aligned) and stored in the ALIGNED file
+OUTPUT2=/gscratch/scrubbed/lbreit/fish546/SORTED/${DATASET}
+# creates variable OUTPUT2 that is the name of the sample (referring to sorted sample file) and stored in the SORTED directory
+REPORT=/mmfs1/home/lbreit/fish546/aligned_${DATASET}.txt
+# creates variable REPORT that is the name of the report that will be stored at aligned_rad.txt
+
+## CODE
+
+mkdir -p ${INPUT} #make directory (see above for complete path) if it doesn't already exist
+mkdir -p ${OUTPUT1} #make directory (see above for complete path) if it doesn't already exist
+mkdir -p ${OUTPUT2} #make directory (see above for complete path) if it doesn't already exist
+
+## Aligning
+
+# a for loop that aligns each .fq file according to name of sample and outputs a .sam file
+for i in ${ind_ID};
+do
+  bwa mem -t 20 -T 30 $REF $INPUT/${i}.fq > $OUTPUT1/${i}.sam 2>> $REPORT
+done
+
+conda deactivate #deactivate conda env
+
+## Sorting
+conda activate samtools_env
+
+# a for loop that sorts each .sam file (using samtools) and creates a .bam file
+for i in ${ind_ID};
+do
+  samtools view -b -q 30 $OUTPUT1/${i}.sam > $OUTPUT1/${i}.bam
+  samtools sort $OUTPUT1/${i}.bam > $OUTPUT2/${i}.bam
+  samtools index $OUTPUT2/${i}.bam
+done
+```
+
+The products of alignment are .sam files, and sorting then creates .bam files. These .bam files are inputs for variant calling.
 
 ## 1.2 Variant calling
 
+```{bash, eval=FALSE}
+## ENVIRONMENT
+#source /gscratch/merlab/software/miniconda3/etc/profile.d/conda.sh
+#conda activate stacks_env
+module load coenv/stacks
+
+## VARIABLES
+DATASET="test2"
+ALL_DEDUP="/gscratch/scrubbed/lbreit/fish546/SORTED/${DATASET}"
+POPMAP="/mmfs1/home/lbreit/fish546/popmap_test2.txt"
+REFMAP_DIR="/gscratch/scrubbed/lbreit/fish546/REFMAP/${DATASET}"
+#REPORT=/mmfs1/home/lbreit/reports
+
+## CODE
+mkdir -p ${REFMAP_DIR}
+
+# Run the reference-based Stacks pipeline
+ref_map.pl \
+--samples ${ALL_DEDUP} \
+--popmap ${POPMAP} \
+-o ${REFMAP_DIR} \
+-T 20 \
+-X "populations: --vcf" \
+-X "populations: --ordered-export"
+#&>> $REPORT/refmap_RAD_${DATASET}.txt
+```
+
+This script produces a **.vcf** file *(Variant Call Format file)* that stores information about each genetic variant:
+
+- a header section with metadata including the reference genome and sample names 
+- each line represents a *single variant*
+- each variant entry includes important metadata such as chromosome name, position, reference base, alternate base(s), and genotype information for each sample. 
+
+We will assess our .vcf file and conduct remaining steps in R.
+
 ## 1.3 Filtering
+
+```{r}
+#| eval: true
+#| echo: false
+#| output: false
+
+library(vcfR)
+library(devtools)
+devtools::install_github("DevonDeRaad/SNPfiltR")
+library(SNPfiltR)
+library(vegan)
+library(LEA)
+library(ggplot2)
+library(ggrepel)
+library(corrplot)
+library(caret)
+library(poppr)
+library(here)
+library(dplyr)
+library(tidyr)
+library(PCAtest)
+library(dartRverse)
+library(pcadapt)
+```
+
+```{bash, eval=FALSE}
+#transfer vcf file from hyak to raven
+rsync lbreit@klone.hyak.uw.edu:/gscratch/scrubbed/lbreit/fish546/REFMAP/test2/populations.snps.vcf ../data
+```
+
+What does our .vcf file contain?
+
+```{r}
+#| eval: true
+#| echo: true
+#| results: hide
+#read vcf into this R session as vcfR 
+vcfR <- read.vcfR("C:/Users/lbreit/Documents/lara-zostera/project/data/populations.snps.vcf")
+
+#assess metadata
+vcfR
+```
+
+```{r}
+head(vcfR, 3)
+```
+
+Understanding a VCF file:
+
+**Fixed section** corresponds to per-variant genotype information
+
+-   CHROM: the chromosome where the variant is located (zm has 6 pairs of chromosomes)
+-   POS: the 1-based position of the variant on the chromosome
+-   ID: a unique identifier for the variant. *unsure how to read format*
+-   REF: reference allele
+-   ALT: alternate allele, the one that is observed as a variant in this position
+-   QUAL: quality score. "NA" indicates either missing or unreported quality scores *ask Bryan about this*
+-   FILTER: filter status for this variant. "PASS" indicates that the variant passed filtering criteria during variant calling.
+
+**Genotype section** corresponds to sample-specific data columns of a VCF file; i.e., each sample's genotype at each variant site
+
+Sample size: **639** individuals
+
+Variants: **37,617** biallelic sites
+
+#### Why filter?
+
+We want to detect and and remove markers that do not actually represent loci, identify and correct erroneous SNP calls, and assess genotyping error. Error can be introduced during library prep and bioinformatic processing!
+
+### Example of filtering: genotype depth ≥ 10 and genotype quality ≥ 30
+
+```{r}
+#| eval: true
+#| echo: true
+#| output: false
+
+#pop map
+#read all lines from the file
+lines <- readLines("../data/popmap_test2.txt")
+
+# Filter out lines that start with '#'
+lines <- lines[!grepl("^#", lines)]
+
+# Convert the remaining lines into a textConnection for reading as a table
+popmap <- read.table(text = lines, sep = "\t", header = FALSE)
+
+# Assign column names
+colnames(popmap) <- c("id", "pop", "region")
+head(popmap)
+```
+
+```{r, eval=FALSE}
+#| eval: true
+#| echo: true
+#| output: false
+
+vcfR<-hard_filter(vcfR=vcfR, depth = 10, gq = 30)
+
+#run function to visualize hard filter
+suppressMessages(suppressWarnings(
+  missing_by_sample(vcfR=vcfR, popmap = popmap)
+))
+```
+
+![](../images/filtering.png)
+
+We also filter using other thresholds: allelic balance, monomorphic SNPs, one SNP per RADtag (to minimize linkage disequilibrium bias), minor allele frequencies, and SNPs in Hardy-Weinberg disequilbrium if present across all sites.
+
+**Filtered Dataset**
+
+Sample size: **632** individuals
+
+Variants: **936** biallelic sites (loci)
+
+## 1.4 Clone correcting
+
+Eelgrass reproduces both clonally and via flowering (rad, am I right?). Some meadows can be largely clonal (comprised of only a few clones, or what we will refer to as *multilocus lineages*). We need to remove any *duplicate multilocus lineages* in our dataset.
+
+![](../images/before_clonecorrection.png)
+
+This graph shows how the number of calculated multilocus lineages across all the data changes as you increase the *genetic distance cut-off*. We use this plot for determining an appropriate threshold for clone-correction.
+
+![](../images/after_clone_correction.png)
+
+After deciding on our threshold, we remove "clones" (based on our variant dataset) and we are left with approximately **~ 400** individuals.
+
+## 1.5 Population Structure based on allele frequencies
+
+This step requires extracting allele frequencies from our genetic dataset that we finalized during clone correction.
+
+#### Plotting results
+
+```{r}
+#| eval: true
+#| echo: true
+#| output: false
+# Read into pcadapt
+pcadapt_data <- read.pcadapt("../data/genotypes.pcadapt", type = "pcadapt")
+```
+
+```{r}
+#| eval: true
+#| echo: true
+
+result <- pcadapt(pcadapt_data, K = 5) # run PCA
+
+# Read the CSV file
+levels_df <- read.csv("../data/populations_forpca.csv", stringsAsFactors = FALSE)
+levels_df$populations <- factor(levels_df$populations)
+populations <- levels_df$populations
+
+#extract variance explained by each PC
+singular_vals <- result$singular.values
+var_explained <- (singular_vals^2 / sum(singular_vals^2)) * 100
+
+scores <- as.data.frame(result$scores) # scores
+populations_short <- sub("[ _].*", "", populations) # Keep only the first word (before a space or underscore)
+scores$pop <- populations_short # populations
+pc1_var <- round(var_explained[1],2)
+pc2_var <- round(var_explained[2],2)
+
+
+ggplot(scores, aes(V1, V2, color = pop)) +
+  geom_point(size = 2) +
+  theme_minimal(base_size = 14) +
+  labs(
+    x = paste0("PC1 (", pc1_var, "%)"),
+    y = paste0("PC2 (", pc2_var, "%)")
+  ) +
+  labs(color = "Sample population") +
+  scale_color_manual(values = c(
+  "#333333",
+  "#27109E", # cherry point
+  "#444444",
+  "#666666",
+  "#888888",
+  "#4F9EFF", #grays harbor
+  "#AAAAAA",
+  "#FDCA00", # maury island
+  "#AF72FF", #nisqually reach
+  "#CCCCCC",
+  "#23AC89", # port gamble
+  "#EEEEEE",
+  "#FFFFFF",
+  "#DDDDDD",
+  "#FA9600" #willapa
+))
+```
+
+PC1 separates our coastal samples from our inland samples. PC2 appears to separate inland samples from one another. All as expected! Yay! Here's the map again for reference:
+
+![](../images/all_sites.png)
 
 ## 2.1 Temperature data
 
-## 2.2 RDA (1st method)
+Lots of data wrangling and quality control with the temperature datasets.
+
+```{r warning=FALSE}
+plot_data <- read.csv(here::here("project/output", "tempdata_forplotting.csv"))
+
+site_colors <-c("#4E9DFE","#FECB00","#994BFF","#250F98","#FD9800","#27BF99")
+
+plot_data <- plot_data %>% filter(site != "CI")
+
+plot_data$site <- factor(plot_data$site, levels = c("GH", "MI", "NR", "CP", "WB", "PG"))
+plot_data$date <- as.Date(plot_data$date, format = "%Y-%m-%d")
+
+  
+# Plot
+ggplot(plot_data, aes(x = date, y = daily_mean_temp, color = site)) +
+  geom_point() +
+  scale_color_manual(values = site_colors) +
+  geom_errorbar(aes(ymin = daily_min_temp, ymax = daily_max_temp), width = 0.2) +
+  labs(
+    title = "Mean daily temp and range (minima and maxima)",
+    x = "Date",
+    y = "Temperature (°C)",
+    color = "Site"
+  ) +
+  theme_minimal()
+
+```
+
+Sites all display a seasonal temperature regime, but they also appear to differ, mostly in temperature ranges and maxima in warmer months.
+
+### Summary statistics for those warmer months
+
+```{r}
+anemone_temps <- read.csv(here::here("project/data", "anemone_temps.csv"))
+
+#summer dataset (for now)
+anemone_temps_summer <- anemone_temps %>% filter(season == "Summer")
+
+# oops we don't need Case Inlet
+anemone_temps_summer <- anemone_temps_summer %>% filter(site != "CI")
+
+desired_order <- c("GH", "MI", "NR", "CP", "WB", "PG")
+anemone_temps_summer$site <- factor(anemone_temps_summer$site, levels = desired_order)
+
+head(anemone_temps_summer)
+```
+
+## 2.2 Redundancy analysis (one GEA method)
 
 RDA allows us to do two things:
 
-Determine how the temperature dataset (multiple metrics) is related to genetic variation (allele frequencies) in our dataset
+-   Determine how the temperature dataset (of multiple metrics) is related to genetic variation (allele frequencies) in our dataset, and
 
-Identify variants with strong association to the environmental data (i.e., outliers), which we then presume may be candidates for selection.
+-   Identify variants with strong association to the environmental data (i.e., outliers), which we then presume may be candidates for selection.
 
-## 2.3 Gradient Forest Modeling (2nd method)
+First, temp metrics need to be scaled and *uncorrelated* to be used together as predictors in the RDA. Generally, anything below a correlation coefficient of **\~ 0.75** is considered adequate.
 
-Run the gradient forest model on the allele frequency data for the outlier SNPs and the summarized temperature dataset.
+```{r}
+anemone_temps_numeric <- anemone_temps_summer %>% dplyr::select(where(is.numeric)) # selecting temp metrics
 
+anemone_temps_scaled <- scale(anemone_temps_numeric)  # scaling metrics with a mean = 0 and a SD = 1 (for RDA)
 
+## check for correlation in temperature metrics
+corr_mat <- cor(anemone_temps_scaled)
+corrplot::corrplot(corr_mat, method = 'number')
+```
+
+```{r}
+uncorr.temps.2 <- anemone_temps_scaled[,c(1,2,6)] # retained metrics
+print(uncorr.temps.2)
+```
+
+Next, I need to load in my allele frequency matrix.
+
+```{r}
+my_matrix <- as.matrix(read.table("../output/freqmatrix.txt", sep = "\t", header = TRUE))
+```
+
+```{r}
+rda.dat<-cbind(as.data.frame(uncorr.temps.2),my_matrix) # bind data
+
+# RDA
+rda.full<-vegan::rda(my_matrix ~ 
+                          seasonal_mean + 
+                          seasonal_max + 
+                          seasonal_range, data=as.data.frame(uncorr.temps.2), scale=T)
+```
+
+```{r}
+#adjust for multiple corrections
+RsquareAdj(rda.full)
+```
+
+With an adjusted R-squared of ~ .20, my temperature metrics only explain 20% of the variation in my SNP dataset. Eh. Now, to plot...
+
+### Plot RDA results
+
+```{r warning=FALSE}
+#extract % explained by the first 3 axes
+axis.perc <- round(100*(summary(rda.full)$cont$importance[2, 1:2]), 2)
+# Extract site, species, and constraint scores
+site_scores <- scores(rda.full, display = "sites", scaling = 3)
+species_scores <- scores(rda.full, display = "species", scaling = 3)
+biplot_scores <- scores(rda.full, display = "bp", scaling = 3)
+
+# Create a color vector based on site categories
+site_colors <-c("#4E9DFE","#FECB00","#994BFF","#250F98","#FD9800","#27BF99")
+sites<-anemone_temps_summer$site
+
+offset_factor1 <- 1.3 # move labels _ % further from origin
+offset_factor2 <- 1.5 # move labels _ % further from origin
+
+ggplot() +
+  # Site points
+  geom_point(
+    data = as.data.frame(site_scores),
+    aes(x = RDA1, y = RDA2, color = anemone_temps_summer$site),
+    size = 3
+  ) +
+  
+  # Species labels (with ggrepel to avoid overlap)
+  geom_text_repel(
+    data = as.data.frame(species_scores),
+    aes(x = RDA1*offset_factor1, y = RDA2*offset_factor1, label = rownames(species_scores)),
+    color = "black", size = 3.5
+  ) +
+  geom_segment(
+    data = as.data.frame(species_scores),
+    aes(x = 0, y = 0, xend = RDA1, yend = RDA2),
+    arrow = arrow(length = unit(0.2, "cm")),
+    color = "black", linewidth = 0.6
+  ) +
+  
+  # Constraint arrows (biplot scores)
+  geom_segment(
+    data = as.data.frame(biplot_scores),
+    aes(x = 0, y = 0, xend = RDA1, yend = RDA2),
+    arrow = arrow(length = unit(0.2, "cm")),
+    color = "gray", linewidth = 0.6
+  ) +
+  
+  # Constraint labels
+  geom_text_repel(
+    data = as.data.frame(biplot_scores),
+    aes(x = RDA1*offset_factor2, y = RDA2*offset_factor2, label = rownames(biplot_scores)),
+    color = "gray", size = 4, fontface = "italic",
+  ) +
+  
+  # Styling
+  theme_bw() +
+  labs(
+    x = paste0("RDA1 (", round(summary(rda.full)$cont$importance[2,1] * 100, 1), "%)"),
+    y = paste0("RDA2 (", round(summary(rda.full)$cont$importance[2,2] * 100, 1), "%)"),
+    color = "ANeMoNe sites"
+  ) +
+  scale_color_manual(values = site_colors)  # Color palette
+```
+
+We see site separation along both axes. RDA1 separates coastal sites from others, and RDA2 appears to separate the northern-most site from the south and central Puget sound sites. The model, however, is not significant (p-value \~ 0.14). I have a hunch that my predictor variables, the temperature metrics, may not be specified in the best way. Loci appear tightly clustered around the center; however, we can still look at the loci that drive the patterns we are seeing:
+
+### Identify outlier loci (adaptive candidates)
+
+```{r}
+loadings <- scores(rda.full, choices = 1:2, display = "species")
+outliers <- which(loadings^2 > quantile(loadings^2, 0.99))  # Top 1% loading scores
+
+cat("Outlier loci (those with top 1% loading scores):", outliers)
+```
+
+## 2.3 Remaining steps
+
+-   Robust identification of putatively adaptive loci requires conducting multiple methods and ideally retaining the overlapping outlier SNPs. Therefore, I will still need to employ *at least* one more statistical method: **LFMM (latent factor mixed modeling)** is an option.
+
+-   For a more robust characterization effort, I would want to acquire longer temperature datasets and more thoughtfully decide on my summary methods.
+
+-   Explore the potential that neutral genetic variation is dampening my ability to detect adaptive loci (i.e. my population structure likely correlates with environmental gradients), and explore options for tackling this. I've seen **partial RDAs** used, which condition out the effects of neutral population structure and isolates the genetic variation explained solely by environmental variables.
+
+-   After validating my methods and **trusting my results**, I can interpret the functional relevance of these candidate SNPs (is that even possible? IDK!)
+
+## References
+
+Bernatchez, L., Ferchaud, A.-L., Berger, C. S., Venney, C. J., & Xuereb, A. (2024). Genomics for monitoring and understanding species responses to global climate change. Nature Reviews Genetics, 25(3), 165–183. https://doi.org/10.1038/s41576-023-00657-y
+
+Forester, B. R., Cicchino, A. S., Shah, A. A., Mudd, A. B., Anderson, E. C., Bredeson, J. V., Crawford, A. J., Dunham, J. B., Ghalambor, C. K., Landguth, E. L., Murray, B. W., Rokhsar, D., & Funk, W. C. (2025). Population Genomics Reveals Local Adaptation Related to Temperature Variation in Two Stream Frog Species: Implications for Vulnerability to Climate Warming. https://doi.org/10.1111/mec.17651
+
+Khangaonkar, T., Nugraha, A., Xu, W., & Balaguru, K. (2019). Salish Sea Response to Global Climate Change, Sea Level Rise, and Future Nutrient Loads. Journal of Geophysical Research: Oceans, 124(6), 3876–3904. https://doi.org/10.1029/2018JC014670
+
+Krumhansl, K. A., Dowd, M., & Wong, M. C. (2021). Multiple Metrics of Temperature, Light, and Water Motion Drive Gradients in Eelgrass Productivity and Resilience. Frontiers in Marine Science, 8. https://doi.org/10.3389/fmars.2021.597707
+
+Magel, C. L., Hacker, S. D., Chan, F., & Helms, A. R. (2023). Eelgrass and Macroalgae Loss in an Oregon Estuary: Consequences for Ocean Acidification and Hypoxia. Ocean-Land-Atmosphere Research, 2, 0023. https://doi.org/10.34133/olar.0023
+
+Oliver, E. C. J., Donat, M. G., Burrows, M. T., Moore, P. J., Smale, D. A., Alexander, L. V., Benthuysen, J. A., Feng, M., Sen Gupta, A., Hobday, A. J., Holbrook, N. J., Perkins-Kirkpatrick, S. E., Scannell, H. A., Straub, S. C., & Wernberg, T. (2018). Longer and more frequent marine heatwaves over the past century. Nature Communications, 9(1), Article 1. https://doi.org/10.1038/s41467-018-03732-9
+
+Smale, D. A., Wernberg, T., Oliver, E. C. J., Thomsen, M., Harvey, B. P., Straub, S. C., Burrows, M. T., Alexander, L. V., Benthuysen, J. A., Donat, M. G., Feng, M., Hobday, A. J., Holbrook, N. J., Perkins-Kirkpatrick, S. E., Scannell, H. A., Sen Gupta, A., Payne, B. L., & Moore, P. J. (2019). Marine heatwaves threaten global biodiversity and the provision of ecosystem services. Nature Climate Change, 9(4), Article 4. https://doi.org/10.1038/s41558-019-0412-1
+
+Wong, M. C., & Dowd, M. (2025). Eelgrass (Zostera marina) Trait Variation Across Varying Temperature-Light Regimes. Estuaries and Coasts, 48(1), 13. https://doi.org/10.1007/s12237-024-01439-3
