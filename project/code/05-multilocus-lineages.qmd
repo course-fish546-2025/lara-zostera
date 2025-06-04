@@ -11,6 +11,7 @@ library(poppr)
 library(here)
 library(dartRverse)
 ```
+
 ### Looking at data
 
 ```{r}
@@ -23,6 +24,7 @@ genind_obj <- import2genind(here::here("project/output", "genepop_final.gen"))
 head(genind_obj)
 unique(genind_obj@pop)
 ```
+
 ### Clone correcting
 
 ```{r}

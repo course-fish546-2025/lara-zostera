@@ -98,6 +98,7 @@ vcfR<-hard_filter(vcfR=vcfR, depth = 10, gq = 30)
 
 #run function to visualize samples
 missing_by_sample(vcfR=vcfR, popmap = popmap)
+
 ```
 
 ### genotype allelic balance \< 0.2 and \> 0.8
@@ -180,7 +181,6 @@ Sample size: `r length(indNames(my_genlight))` individuals
 
 Variants: `r length(locNames(my_genlight))` loci
 
-STOPPED HERE
 
 ## MAF & HWE
 
